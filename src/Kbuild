@@ -1,0 +1,10 @@
+#EXTRA_CFLAGS = -Wall -g //deprecated
+ccflags-y := -Wall -g -DDEBUG -DKERNEL_MODE  #$(CC)
+#asflags-y :=   #$(AS)
+#ldflags-y :=   #$(LD)
+
+#wildcard抓取所有.c文件，notdir删掉这些.c文件的路径名
+OBJS := $(patsubst %.c, %.o,$(notdir $(wildcard $(PWD)/*.c)))
+
+obj-m = nvmblock.o
+nvmblock-y = $(OBJS)
