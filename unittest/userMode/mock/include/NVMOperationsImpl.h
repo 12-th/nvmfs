@@ -16,33 +16,33 @@ extern void UnittestNVMUninit(void);
 
 #define NVMReadIMPL(offset, size, buffer)                                                                              \
     ({                                                                                                                 \
-        memcpy(buffer, unittestNVM + offset.addr, size);                                                               \
+        memcpy(buffer, unittestNVM + offset, size);                                                                    \
         size;                                                                                                          \
     })
 
 #define NVMWriteIMPL(offset, size, buffer)                                                                             \
     ({                                                                                                                 \
-        memcpy(unittestNVM + offset.addr, buffer, size);                                                               \
+        memcpy(unittestNVM + offset, buffer, size);                                                                    \
         size;                                                                                                          \
     })
 
 #define NVMemcpyIMPL(dst, src, size)                                                                                   \
     ({                                                                                                                 \
-        memcpy(unittestNVM + dst.addr, unittestNVM + src.addr, size);                                                  \
+        memcpy(unittestNVM + dst, unittestNVM + src, size);                                                            \
         size;                                                                                                          \
     })
 
-#define NVMemsetIMPL(dst, val, size) ({ memset(unittestNVM + dst.addr, val, size); })
+#define NVMemsetIMPL(dst, val, size) ({ memset(unittestNVM + dst, val, size); })
 
 #define NVMCASIMPL(offset, oldvalue, newvalue)                                                                         \
     ({                                                                                                                 \
-        BOOL ret = BOOL_COMPARE_AND_SWAP((typeof(oldvalue) *)(unittestNVM + offset.addr), oldvalue, newvalue);         \
+        BOOL ret = BOOL_COMPARE_AND_SWAP((typeof(oldvalue) *)(unittestNVM + offset), oldvalue, newvalue);              \
         ret;                                                                                                           \
     })
 
 #define NVMFAAIMPL(offset, delta, type)                                                                                \
     ({                                                                                                                 \
-        typeof(type) ret = FETCH_AND_ADD((typeof(type) *)(unittestNVM + offset.addr), delta);                          \
+        typeof(type) ret = FETCH_AND_ADD((typeof(type) *)(unittestNVM + offset), delta);                               \
         ret;                                                                                                           \
     })
 

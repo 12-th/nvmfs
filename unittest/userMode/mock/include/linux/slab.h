@@ -2,20 +2,24 @@
 #define LINUX_SLAB_H
 
 #include "common.h"
+#include <stdlib.h>
+#include <sys/mman.h>
 
 struct page
-{};
+{
+};
 
 #define kmalloc(size, gfp) malloc(size)
-#define kfree(ptr)  free(ptr)
+#define kfree(ptr) free(ptr)
 static inline struct page * alloc_pages(gfp_t flags, unsigned int order)
 {
-    void * addr = mmap(NULL, 1 << (order + 12), PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_POPULATE | MAP_PRIVATE, 0, 0);
-    if(addr == MAP_FAILED)
+    void * addr =
+        mmap(NULL, 1 << (order + 12), PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_POPULATE | MAP_PRIVATE, 0, 0);
+    if (addr == MAP_FAILED)
     {
         return NULL;
     }
-    if(flags & __GFP_ZERO)
+    if (flags & __GFP_ZERO)
     {
         memset(addr, 0, 1 << (order + 12));
     }
@@ -29,7 +33,7 @@ static inline struct page * alloc_page(gfp_t flags)
 
 static inline void free_pages(unsigned long addr, unsigned int order)
 {
-    munmap(addr, 1 << (order + 12));
+    munmap((void *)addr, 1 << (order + 12));
 }
 
 static inline void free_page(unsigned long addr)
@@ -37,7 +41,7 @@ static inline void free_page(unsigned long addr)
     free_pages(addr, 0);
 }
 
-static inline void * page_address(const struct page * page)
+static inline void * page_address(struct page * page)
 {
     return page;
 }

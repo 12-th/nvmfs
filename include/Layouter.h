@@ -1,7 +1,7 @@
 #ifndef LAYOUTER_H
 #define LAYOUTER_H
 
-#include "NVMPtr.h"
+#include "Types.h"
 
 // 需要记录的信息
 // 总大小，n个比特位（1T对应40位） nvmSizeBits
@@ -41,8 +41,6 @@
 struct Layouter
 {
     UINT64 nvmSizeBits;
-    nvm_addr_t blockMetaDataTable;
-    nvm_addr_t availBlockTable;
 
     nvm_addr_t blockWearTable;
     nvm_addr_t blockUnmapTable;

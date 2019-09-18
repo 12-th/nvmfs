@@ -2,7 +2,6 @@
 #define NVM_OPERATIONS_H
 
 #include "NVMOperationsImpl.h"
-#include "NVMPtrDefine.h"
 #include "Types.h"
 
 #define ALWAYS_INLINE __attribute__((always_inline))
@@ -22,9 +21,57 @@ static inline ALWAYS_INLINE UINT64 NVMRead(nvm_addr_t offset, UINT64 size, void 
     return NVMReadIMPL(offset, size, buffer);
 }
 
+static inline ALWAYS_INLINE UINT8 NVMRead8(nvm_addr_t offset)
+{
+    UINT8 value;
+    NVMReadIMPL(offset, sizeof(value), &value);
+    return value;
+}
+
+static inline ALWAYS_INLINE UINT16 NVMRead16(nvm_addr_t offset)
+{
+    UINT16 value;
+    NVMReadIMPL(offset, sizeof(value), &value);
+    return value;
+}
+
+static inline ALWAYS_INLINE UINT32 NVMRead32(nvm_addr_t offset)
+{
+    UINT32 value;
+    NVMReadIMPL(offset, sizeof(value), &value);
+    return value;
+}
+
+static inline ALWAYS_INLINE UINT64 NVMRead64(nvm_addr_t offset)
+{
+    UINT64 value;
+    NVMReadIMPL(offset, sizeof(value), &value);
+    return value;
+}
+
 static inline ALWAYS_INLINE UINT64 NVMWrite(nvm_addr_t offset, UINT64 size, void * buffer)
 {
     return NVMWriteIMPL(offset, size, buffer);
+}
+
+static inline ALWAYS_INLINE UINT64 NVMWrite8(nvm_addr_t offset, UINT8 data)
+{
+    return NVMWrite(offset, sizeof(data), &data);
+}
+
+static inline ALWAYS_INLINE UINT64 NVMWrite16(nvm_addr_t offset, UINT16 data)
+{
+    return NVMWrite(offset, sizeof(data), &data);
+}
+
+static inline ALWAYS_INLINE UINT64 NVMWrite32(nvm_addr_t offset, UINT32 data)
+{
+    return NVMWrite(offset, sizeof(data), &data);
+}
+
+static inline ALWAYS_INLINE UINT64 NVMWrite64(nvm_addr_t offset, UINT64 data)
+{
+    return NVMWrite(offset, sizeof(data), &data);
 }
 
 static inline ALWAYS_INLINE UINT64 NVMemcpy(nvm_addr_t dst, nvm_addr_t src, UINT64 size)

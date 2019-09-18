@@ -2,16 +2,6 @@
 #include "Config.h"
 #include "Layouter.h"
 
-static inline UINT64 sizeOfBlockMetaDataTable(UINT64 nvmSizeBits)
-{
-    return alignUpBits((1UL << (nvmSizeBits - BITS_2M)) * sizeof(UINT32), BITS_2M);
-}
-
-static inline UINT64 sizeOfAvailBlockTable(void)
-{
-    return alignUpBits((MAX_WEAR_COUNT / STEP_WEAR_COUNT) * sizeof(UINT32), BITS_2M);
-}
-
 static inline UINT64 sizeOfBlockWearTable(UINT64 nvmSizeBits)
 {
     return alignUpBits((1UL << (nvmSizeBits - BITS_2M)) * sizeof(UINT32), BITS_2M);
@@ -81,13 +71,11 @@ static inline UINT64 sizeOfReservedSpace(void)
 void LayouterInit(struct Layouter * l, UINT64 nvmSizeBits)
 {
     l->nvmSizeBits = nvmSizeBits;
-    l->blockMetaDataTable = nvm_addr_from_ul(sizeOfReservedSpace());
-    l->availBlockTable = nvm_ptr_advance(l->blockMetaDataTable, sizeOfBlockMetaDataTable(nvmSizeBits));
-    l->blockWearTable = nvm_ptr_advance(l->availBlockTable, sizeOfAvailBlockTable());
-    l->blockUnmapTable = nvm_ptr_advance(l->blockWearTable, sizeOfBlockWearTable(nvmSizeBits));
-    l->pageWearTable = nvm_ptr_advance(l->blockUnmapTable, sizeOfBlockUnmapTable(nvmSizeBits));
-    l->pageUnmapTable = nvm_ptr_advance(l->pageWearTable, sizeOfPageWearTable(nvmSizeBits));
-    l->mapTable = nvm_ptr_advance(l->pageUnmapTable, sizeOfPageUnmapTable(nvmSizeBits));
-    l->swapTable = nvm_ptr_advance(l->mapTable, sizeOfMapTable(nvmSizeBits));
-    l->dataStart = nvm_ptr_advance(l->swapTable, sizeOfSwapTable());
+    l->blockWearTable = sizeOfReservedSpace();
+    l->blockUnmapTable = l->blockWearTable + sizeOfBlockWearTable(nvmSizeBits);
+    l->pageWearTable = l->blockUnmapTable + sizeOfBlockUnmapTable(nvmSizeBits);
+    l->pageUnmapTable = l->pageWearTable + sizeOfPageWearTable(nvmSizeBits);
+    l->mapTable = l->pageUnmapTable + sizeOfPageUnmapTable(nvmSizeBits);
+    l->swapTable = l->mapTable + sizeOfMapTable(nvmSizeBits);
+    l->dataStart = l->swapTable + sizeOfSwapTable();
 }
