@@ -1,3 +1,4 @@
+#include "Align.h"
 #include "Types.h"
 #include <stdlib.h>
 
@@ -6,8 +7,8 @@ UINT64 unittestNVMSize;
 
 int UnittestNVMInit(UINT64 size)
 {
-    unittestNVM = malloc(size);
-    unittestNVMSize = size;
+    unittestNVM = aligned_alloc(SIZE_2M, AlignUp(size, SIZE_2M));
+    unittestNVMSize = AlignUp(size, SIZE_2M);
     return 0;
 }
 

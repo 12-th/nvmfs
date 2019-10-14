@@ -25,4 +25,6 @@ extern void panic(const char * fmt, ...);
 
 #include <linux/string.h>
 
+#define ALWAYS_INLINE __attribute__((always_inline))
+
 #endif

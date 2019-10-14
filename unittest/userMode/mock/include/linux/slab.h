@@ -11,6 +11,16 @@ struct page
 
 #define kmalloc(size, gfp) malloc(size)
 #define kfree(ptr) free(ptr)
+
+static inline void * kzmalloc(size_t size, gfp_t flags)
+{
+    void * ptr;
+
+    ptr = malloc(size);
+    memset(ptr, 0, size);
+    return ptr;
+}
+
 static inline struct page * alloc_pages(gfp_t flags, unsigned int order)
 {
     void * addr =
@@ -39,6 +49,11 @@ static inline void free_pages(unsigned long addr, unsigned int order)
 static inline void free_page(unsigned long addr)
 {
     free_pages(addr, 0);
+}
+
+static inline void * __get_free_page(gfp_t flags)
+{
+    return alloc_page(flags);
 }
 
 static inline void * page_address(struct page * page)

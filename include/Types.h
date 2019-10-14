@@ -11,7 +11,11 @@ typedef short INT16;
 typedef char INT8;
 
 typedef UINT64 nvm_addr_t;
-typedef UINT32 block_t;
+typedef UINT32 physical_block_t;
+typedef UINT32 logical_block_t;
+typedef UINT64 logic_addr_t;
+typedef UINT64 physical_page_t;
+typedef UINT64 logical_page_t;
 
 #define BITS_4K 12
 #define SIZE_4K (1UL << BITS_4K)
@@ -19,14 +23,7 @@ typedef UINT32 block_t;
 #define BITS_2M 21
 #define SIZE_2M (1UL << BITS_2M)
 
-static inline block_t nvm_addr_to_block(nvm_addr_t addr)
-{
-    return addr >> BITS_2M;
-}
-
-static inline nvm_addr_t block_to_nvm_addr(block_t block)
-{
-    return (nvm_addr_t)(block) << BITS_2M;
-}
+#define invalid_nvm_addr (-1UL)
+#define invalid_block (-1)
 
 #endif

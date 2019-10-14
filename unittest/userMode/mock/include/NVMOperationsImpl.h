@@ -46,8 +46,9 @@ extern void UnittestNVMUninit(void);
         ret;                                                                                                           \
     })
 
-#define NVMFlushIMPL
+#define NVMFlushIMPL(ptr)
 #define NVMLoadBarrierIMPL
 #define NVMStoreBarrierIMPL
+#define NVMBarrierIMPL()
 
 #endif

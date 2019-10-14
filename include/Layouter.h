@@ -1,7 +1,9 @@
 #ifndef LAYOUTER_H
 #define LAYOUTER_H
 
+#include "Config.h"
 #include "Types.h"
+#include "common.h"
 
 // 需要记录的信息
 // 总大小，n个比特位（1T对应40位） nvmSizeBits
@@ -41,6 +43,8 @@
 struct Layouter
 {
     UINT64 nvmSizeBits;
+    nvm_addr_t superBlock;
+    nvm_addr_t swapTableMetadata;
 
     nvm_addr_t blockWearTable;
     nvm_addr_t blockUnmapTable;
@@ -48,13 +52,89 @@ struct Layouter
     nvm_addr_t pageWearTable;
     nvm_addr_t pageUnmapTable;
 
-    nvm_addr_t mapTable;
-
     nvm_addr_t swapTable;
+    nvm_addr_t blockSwapTransactionLogArea;
+
+    nvm_addr_t mapTableSerializeData;
 
     nvm_addr_t dataStart;
 };
 
 void LayouterInit(struct Layouter * l, UINT64 nvmSizeBits);
+
+static inline physical_block_t nvm_addr_to_block(nvm_addr_t addr, struct Layouter * l)
+{
+    return (addr - l->dataStart) >> BITS_2M;
+}
+
+static inline nvm_addr_t block_to_nvm_addr(physical_block_t block, struct Layouter * l)
+{
+    return (block << BITS_2M) + l->dataStart;
+}
+
+static inline nvm_addr_t DataStartAddrQuery(struct Layouter * l)
+{
+    return l->dataStart;
+}
+
+static inline ALWAYS_INLINE UINT64 BlockNumQuery(struct Layouter * l)
+{
+    return ((1UL << l->nvmSizeBits) - l->dataStart) >> BITS_2M;
+}
+
+static inline ALWAYS_INLINE UINT64 PageNumQuery(struct Layouter * l)
+{
+    return ((1UL << l->nvmSizeBits) - l->dataStart) >> BITS_4K;
+}
+
+static inline ALWAYS_INLINE nvm_addr_t BlockWearTableAddrQuery(struct Layouter * l)
+{
+    return l->blockWearTable;
+}
+
+static inline ALWAYS_INLINE nvm_addr_t BlockUnmapTableAddrQuery(struct Layouter * l)
+{
+    return l->blockUnmapTable;
+}
+
+static inline ALWAYS_INLINE nvm_addr_t PageWearTableAddrQuery(struct Layouter * l)
+{
+    return l->pageWearTable;
+}
+
+static inline ALWAYS_INLINE UINT64 PageUnmapTableSizeQuery(struct Layouter * l)
+{
+    return l->pageUnmapTable - l->pageWearTable;
+}
+
+static inline ALWAYS_INLINE nvm_addr_t PageUnmapTableAddrQuery(struct Layouter * l)
+{
+    return l->pageUnmapTable;
+}
+
+static inline ALWAYS_INLINE nvm_addr_t MapTableSerializeDataAddrQuery(struct Layouter * l)
+{
+    return l->mapTableSerializeData;
+}
+
+static inline ALWAYS_INLINE UINT64 SwapTableBlockNumQuery(struct Layouter * l)
+{
+    return SWAP_TABLE_BLOCK_NUM;
+}
+
+static inline ALWAYS_INLINE nvm_addr_t SwapTableMetadataAddrQuery(struct Layouter * l)
+{
+    return l->swapTableMetadata;
+}
+
+static inline ALWAYS_INLINE nvm_addr_t SwapTableAddrQuery(struct Layouter * l)
+{
+    return l->swapTable;
+}
+
+static inline ALWAYS_INLINE nvm_addr_t BlockSwapTransactionLogAreaAddrQuery(struct Layouter * l)
+{
+    return l->blockSwapTransactionLogArea;
+}
 
 #endif

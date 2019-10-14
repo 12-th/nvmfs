@@ -19,7 +19,7 @@
 
 #define NVMFAAIMPL(offset, size, oldvalue, newvalue)
 
-#define NVMFlushIMPL
-#define NVMBarrierIMPL
+#define NVMFlushIMPL()
+#define NVMBarrierIMPL()
 
 #endif

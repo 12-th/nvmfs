@@ -2,30 +2,35 @@
 #define SUPER_BLOCK_H
 
 #include "Types.h"
+#include "common.h"
 
-struct AvailBlockTable;
+#define SUPER_BLOCK_SHUTDOWN_FLAG_NORMAL 1
+#define SUPER_BLOCK_SHUTDWON_FLAG_ERROR 2
 
 struct NVMSuperBlock
 {
-    nvm_addr_t availBlockTable;
-    nvm_addr_t blockMetaDataTable;
-};
+    UINT64 nvmSizeBits;
+    UINT64 shutdownFlag;
+} __attribute__((packed));
 
 struct SuperBlock
 {
     UINT64 nvmSizeBits;
-    nvm_addr_t addr;
-    struct AvailBlockTable * pAvailBlockTable;
+    UINT64 shutdownFlag;
 };
 
-static inline UINT64 NvmBitsQuery(struct SuperBlock * sb)
+void SuperBlockFormat(struct SuperBlock * sb, UINT32 nvmSizeBits);
+void SuperBlockInit(struct SuperBlock * sb);
+void SetSuperBlockShutdownFlags(struct SuperBlock * sb);
+
+static inline ALWAYS_INLINE UINT64 NvmBitsQuery(struct SuperBlock * sb)
 {
     return sb->nvmSizeBits;
 }
 
-static inline UINT64 BlockNumQuery(struct SuperBlock * sb)
+static inline ALWAYS_INLINE UINT64 ShutdownFlagQuery(struct SuperBlock * sb)
 {
-    return 1UL << (sb->nvmSizeBits - BITS_2M);
+    return sb->shutdownFlag;
 }
 
 #endif

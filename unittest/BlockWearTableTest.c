@@ -3,8 +3,7 @@
 #include "UnitTestHelp.h"
 #include "kutest.h"
 
-
-TEST(BlockWearTableTest, wholeTest)
+TEST(BlockWearTableTest, WholeTest)
 {
     struct BlockWearTable tbl;
     const UINT32 BLOCK_NUM = 1UL << 10;

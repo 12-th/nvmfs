@@ -3,8 +3,7 @@
 
 #include "NVMOperationsImpl.h"
 #include "Types.h"
-
-#define ALWAYS_INLINE __attribute__((always_inline))
+#include "common.h"
 
 static inline ALWAYS_INLINE int NVMInit(UINT64 size)
 {
@@ -109,13 +108,12 @@ static inline ALWAYS_INLINE void NVMemset(nvm_addr_t dst, int val, UINT64 size)
     do                                                                                                                 \
     {                                                                                                                  \
         int i = 0;                                                                                                     \
-        for (; i < size; i += 8)                                                                                       \
+        for (; i < (size); i += 8)                                                                                     \
         {                                                                                                              \
-            NVMFlushIMPL(ptr.addr + i);                                                                                \
+            NVMFlushIMPL(ptr + i);                                                                                     \
         }                                                                                                              \
     } while (0)
 
-#define NVMBarrier() NVMBarrierIMPL
+#define NVMBarrier() NVMBarrierIMPL()
 
-#undef ALWAYS_INLINE
 #endif

@@ -46,4 +46,10 @@
 
 #include <string.h>
 
+#ifndef PAGE_SIZE
+#define PAGE_SIZE (1UL << 12)
+#endif
+
+#define ALWAYS_INLINE __attribute__((always_inline))
+
 #endif
