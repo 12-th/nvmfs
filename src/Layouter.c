@@ -34,7 +34,7 @@ static inline UINT64 sizeOfMapTableSerializeData(UINT64 nvmSizeBits)
 
 static inline UINT64 sizeOfSwapTable(void)
 {
-    return SWAP_TABLE_BLOCK_NUM << BITS_2M;
+    return AlignUpBits((SWAP_TABLE_BLOCK_NUM << BITS_2M) + (SWAP_TABLE_PAGE_NUM << BITS_4K), BITS_2M);
 }
 
 static inline UINT64 sizeOfReservedSpace(void)
@@ -45,6 +45,11 @@ static inline UINT64 sizeOfReservedSpace(void)
 static inline UINT64 sizeOfBlockSwapTransactionLogArea(void)
 {
     return BLOCK_SWAP_TRANSACTION_LOG_AREA_SIZE;
+}
+
+static inline UINT64 sizeOfPageSwapTransactionLogArea(void)
+{
+    return PAGE_SWAP_TRANSACTION_LOG_AREA_SIZE;
 }
 
 void LayouterInit(struct Layouter * l, UINT64 nvmSizeBits)
@@ -60,6 +65,7 @@ void LayouterInit(struct Layouter * l, UINT64 nvmSizeBits)
     l->pageUnmapTable = l->pageWearTable + sizeOfPageWearTable(nvmSizeBits);
     l->swapTable = l->pageUnmapTable + sizeofPageUnmapTable(nvmSizeBits);
     l->blockSwapTransactionLogArea = l->swapTable + sizeOfSwapTable();
-    l->mapTableSerializeData = l->blockSwapTransactionLogArea + sizeOfBlockSwapTransactionLogArea();
+    l->pageSwapTransactionLogArea = l->blockSwapTransactionLogArea + sizeOfBlockSwapTransactionLogArea();
+    l->mapTableSerializeData = l->pageSwapTransactionLogArea + sizeOfPageSwapTransactionLogArea();
     l->dataStart = AlignUpBits(l->mapTableSerializeData + sizeOfMapTableSerializeData(nvmSizeBits), BITS_2M);
 }

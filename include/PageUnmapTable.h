@@ -13,12 +13,17 @@ struct NVMPageUnmapTableEntry
     UINT64 unmapPage3 : 9;
     UINT64 unmapPage4 : 9;
     UINT64 unmapPage5 : 9;
-    UINT64 unmapPage6 : 9;
+    UINT64 unmapPage0Busy : 1;
+    UINT64 unmapPage1Busy : 1;
+    UINT64 unmapPage2Busy : 1;
+    UINT64 unmapPage3Busy : 1;
+    UINT64 unmapPage4Busy : 1;
+    UINT64 unmapPage5Busy : 1;
 };
 
 struct NVMPageUnmapTableEntryGroup
 {
-    struct NVMPageUnmapTableEntry entries[74];
+    struct NVMPageUnmapTableEntry entries[86];
 };
 
 struct NVMPageUnmapTable
@@ -32,13 +37,20 @@ struct PageUnmapTable
     struct BlockUnmapTable * pBlockUnmapTable;
 };
 
+struct PageInfo
+{
+    UINT64 unmapPage : 9;
+    UINT64 busy : 1;
+};
+
 void PageUnmapTableFormat(struct PageUnmapTable * pTable, struct BlockUnmapTable * pBlockUnmapTable, nvm_addr_t addr,
                           UINT64 pageNum, UINT64 tableSize);
 void PageUnmapTableInit(struct PageUnmapTable * pTable, struct BlockUnmapTable * pBlockUnmapTable, nvm_addr_t addr,
                         UINT64 pageNum);
 void PageUnmapTableUninit(struct PageUnmapTable * pTable);
-logical_page_t PageUnmapTableGet(struct PageUnmapTable * pTable, physical_page_t pageSeq);
-void PageUnmapTableSet(struct PageUnmapTable * pTable, physical_page_t pageSeq, UINT64 relativeIndex);
+void PageUnmapTableGet(struct PageUnmapTable * pTable, physical_page_t pageSeq, struct PageInfo * info);
+void PageUnmapTableSet(struct PageUnmapTable * pTable, physical_page_t pageSeq, struct PageInfo * info);
 void PageUnmapTableBatchGet(struct PageUnmapTable * pTable, physical_block_t block, UINT64 * relativeIndice);
+void PageUnmapTableBatchFormat(struct PageUnmapTable * pTable, physical_block_t block, UINT8 busy);
 
 #endif

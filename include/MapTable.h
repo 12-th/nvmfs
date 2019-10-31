@@ -46,5 +46,7 @@ void MapTableRebuild(struct MapTable * pTable, struct BlockUnmapTable * pBlockUn
 void MapTableUninit(struct MapTable * pTable);
 nvm_addr_t MapAddressQuery(struct MapTable * pTable, UINT64 virt);
 void BlockMapModify(struct MapTable * pTable, logical_block_t virtBlock, physical_block_t block);
+void PageMapModify(struct MapTable * pTable, logical_page_t virtPage, physical_page_t page);
+void MapTableSplitBlockMap(struct MapTable * pTable, logical_block_t virtBlock, physical_block_t block);
 
 #endif

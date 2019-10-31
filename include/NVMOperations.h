@@ -116,4 +116,7 @@ static inline ALWAYS_INLINE void NVMemset(nvm_addr_t dst, int val, UINT64 size)
 
 #define NVMBarrier() NVMBarrierIMPL()
 
+#define NVMCrashSimulate() NVMCrashSimulateIMPL()
+#define NVMCrashRecoverySimulate() NVMCrashRecoverySimulateIMPL()
+
 #endif

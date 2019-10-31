@@ -28,9 +28,14 @@ static inline UINT64 BlockNumberToPmd2MGrain(UINT64 block, UINT64 base)
     return (base + (block << BITS_2M)) | PMD_VALUE_2M_FLAGS;
 }
 
-static inline UINT64 BlockNumberToPmd4KGrain(UINT64 block, UINT64 base)
+static inline UINT64 PageNumberToPte(UINT64 page, UINT64 base)
 {
-    return (base + (block << BITS_2M)) | PMD_VALUE_4K_FLAGS;
+    return (base + (page << BITS_4K)) | PTE_VALUE_FLAGS;
+}
+
+static inline UINT64 BlockNumberToPmd4KGrain(struct PtEntry * ptTable)
+{
+    return ((UINT64)__pa(ptTable)) | PMD_VALUE_4K_FLAGS;
 }
 
 static void ModifyPageTable(struct MapTable * pTable, UINT64 virt, UINT64 value, enum MapLevel level, UINT64 * oldValue)
@@ -89,7 +94,7 @@ void MapTableRebuild(struct MapTable * pTable, struct BlockUnmapTable * pBlockUn
     pTable->dataStartOffset = dataStartOffset;
     base = nvmBaseAddr + dataStartOffset;
 
-    buffer = kmalloc(PAGE_SIZE, GFP_KERNEL);
+    buffer = __get_free_page(GFP_KERNEL);
     for (i = 0; i < blockNum; ++i)
     {
         struct BlockInfo info;
@@ -102,13 +107,13 @@ void MapTableRebuild(struct MapTable * pTable, struct BlockUnmapTable * pBlockUn
             UINT64 * pt;
             UINT64 j;
 
-            pt = kmalloc(PAGE_SIZE, GFP_KERNEL);
+            pt = __get_free_page(GFP_KERNEL);
             PageUnmapTableBatchGet(pPageUnmapTable, i << (BITS_2M - BITS_4K), buffer);
             for (j = 0; j < 512; ++j)
             {
                 pt[buffer[j]] = PageRelativeIndexToPte(j, i, base);
             }
-            ModifyPageTable(pTable, virt, BlockNumberToPmd4KGrain(i, base), LEVEL_4K, NULL);
+            ModifyPageTable(pTable, virt, BlockNumberToPmd4KGrain((struct PtEntry *)pt), LEVEL_4K, NULL);
         }
         else
         {
@@ -116,7 +121,7 @@ void MapTableRebuild(struct MapTable * pTable, struct BlockUnmapTable * pBlockUn
         }
     }
 
-    kfree(buffer);
+    free_page((unsigned long)buffer);
 }
 
 static inline void FreePmdTable(struct PmdEntry * pmd)
@@ -217,4 +222,29 @@ void BlockMapModify(struct MapTable * pTable, logical_block_t virtBlock, physica
 
     value = BlockNumberToPmd2MGrain(block, pTable->nvmBaseAddr + pTable->dataStartOffset);
     ModifyPageTable(pTable, virtBlock << BITS_2M, value, LEVEL_2M, NULL);
+}
+
+void PageMapModify(struct MapTable * pTable, logical_page_t virtPage, physical_page_t page)
+{
+    UINT64 value;
+
+    value = PageNumberToPte(page, pTable->nvmBaseAddr + pTable->dataStartOffset);
+    ModifyPageTable(pTable, virtPage << BITS_4K, value, LEVEL_4K, NULL);
+}
+
+void MapTableSplitBlockMap(struct MapTable * pTable, logical_block_t virtBlock, physical_block_t block)
+{
+    struct PtEntry * ptTable;
+    int i;
+    UINT64 base;
+    UINT64 pmdValue;
+
+    base = pTable->nvmBaseAddr + pTable->dataStartOffset;
+    ptTable = __get_free_page(GFP_KERNEL);
+    for (i = 0; i < 512; ++i)
+    {
+        ptTable[i].value = PageRelativeIndexToPte(i, block, base);
+    }
+    pmdValue = BlockNumberToPmd4KGrain(ptTable);
+    ModifyPageTable(pTable, virtBlock << BITS_2M, pmdValue, LEVEL_2M, NULL);
 }

@@ -16,12 +16,12 @@ void BlockWearTableUninit(struct BlockWearTable * pTable)
 {
 }
 
-UINT32 GetBlockWearCount(struct BlockWearTable * pTable, physical_block_t block)
+UINT32 BlockWearTableGet(struct BlockWearTable * pTable, physical_block_t block)
 {
     return NVMRead32(pTable->addr + sizeof(UINT32) * block);
 }
 
-void UpdateBlockWearCount(struct BlockWearTable * pTable, physical_block_t block, UINT32 newValue)
+void BlockWearTableSet(struct BlockWearTable * pTable, physical_block_t block, UINT32 newValue)
 {
     NVMWrite32(pTable->addr + sizeof(UINT32) * block, newValue);
 }

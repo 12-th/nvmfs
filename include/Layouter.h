@@ -54,6 +54,7 @@ struct Layouter
 
     nvm_addr_t swapTable;
     nvm_addr_t blockSwapTransactionLogArea;
+    nvm_addr_t pageSwapTransactionLogArea;
 
     nvm_addr_t mapTableSerializeData;
 
@@ -70,6 +71,31 @@ static inline physical_block_t nvm_addr_to_block(nvm_addr_t addr, struct Layoute
 static inline nvm_addr_t block_to_nvm_addr(physical_block_t block, struct Layouter * l)
 {
     return (block << BITS_2M) + l->dataStart;
+}
+
+static inline ALWAYS_INLINE physical_page_t nvm_addr_to_page(nvm_addr_t addr, struct Layouter * l)
+{
+    return (addr - l->dataStart) >> BITS_4K;
+}
+
+static inline ALWAYS_INLINE logical_block_t logical_addr_to_block(logic_addr_t addr)
+{
+    return addr >> BITS_2M;
+}
+
+static inline ALWAYS_INLINE nvm_addr_t page_to_nvm_addr(physical_page_t page, struct Layouter * l)
+{
+    return (page << BITS_4K) + l->dataStart;
+}
+
+static inline ALWAYS_INLINE physical_block_t page_to_block(physical_page_t page)
+{
+    return page >> (BITS_2M - BITS_4K);
+}
+
+static inline ALWAYS_INLINE physical_page_t block_to_page(physical_block_t block)
+{
+    return block << (BITS_2M - BITS_4K);
 }
 
 static inline nvm_addr_t DataStartAddrQuery(struct Layouter * l)
@@ -117,9 +143,14 @@ static inline ALWAYS_INLINE nvm_addr_t MapTableSerializeDataAddrQuery(struct Lay
     return l->mapTableSerializeData;
 }
 
-static inline ALWAYS_INLINE UINT64 SwapTableBlockNumQuery(struct Layouter * l)
+static inline ALWAYS_INLINE UINT64 SwapTableBlocksNumQuery(struct Layouter * l)
 {
     return SWAP_TABLE_BLOCK_NUM;
+}
+
+static inline ALWAYS_INLINE UINT64 SwapTablePagesNumQuery(struct Layouter * l)
+{
+    return SWAP_TABLE_PAGE_NUM;
 }
 
 static inline ALWAYS_INLINE nvm_addr_t SwapTableMetadataAddrQuery(struct Layouter * l)
@@ -127,14 +158,24 @@ static inline ALWAYS_INLINE nvm_addr_t SwapTableMetadataAddrQuery(struct Layoute
     return l->swapTableMetadata;
 }
 
-static inline ALWAYS_INLINE nvm_addr_t SwapTableAddrQuery(struct Layouter * l)
+static inline ALWAYS_INLINE nvm_addr_t SwapTableBlocksAddrQuery(struct Layouter * l)
 {
     return l->swapTable;
+}
+
+static inline ALWAYS_INLINE nvm_addr_t SwapTablePagesAddrQuery(struct Layouter * l)
+{
+    return l->swapTable + (SWAP_TABLE_BLOCK_NUM << BITS_2M);
 }
 
 static inline ALWAYS_INLINE nvm_addr_t BlockSwapTransactionLogAreaAddrQuery(struct Layouter * l)
 {
     return l->blockSwapTransactionLogArea;
+}
+
+static inline ALWAYS_INLINE nvm_addr_t PageSwapTransactionLogAreaAddrQuery(struct Layouter * l)
+{
+    return l->pageSwapTransactionLogArea;
 }
 
 #endif

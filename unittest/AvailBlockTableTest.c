@@ -12,7 +12,7 @@ static inline void GenRandomBlockWearTable(struct BlockWearTable * pTable, unsig
     arr = GenRandomArray(blockNum);
     for (i = 0; i < blockNum; ++i)
     {
-        UpdateBlockWearCount(pTable, i, arr[i]);
+        BlockWearTableSet(pTable, i, arr[i]);
     }
 
     kfree(arr);
@@ -39,8 +39,8 @@ TEST(AvailBlockTableTest, RebuildTest)
 
     for (i = 1; i < BLOCK_NUM; ++i)
     {
-        EXPECT_TRUE(GetBlockWearCount(&blockWearTable, blocksSeq[i]) >=
-                    GetBlockWearCount(&blockWearTable, blocksSeq[i - 1]));
+        EXPECT_TRUE(BlockWearTableGet(&blockWearTable, blocksSeq[i]) >=
+                    BlockWearTableGet(&blockWearTable, blocksSeq[i - 1]));
     }
 
     AvailBlockTableUninit(&availBlockTable);

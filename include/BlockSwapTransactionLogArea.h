@@ -12,9 +12,13 @@ struct WearLeveler;
 #define BLOCK_SWAP_STEP3 3
 #define BLOCK_SWAP_STEP4 4
 
+#define BLOCK_SWAP_COMPLETE 0
+#define BLOCK_SWAP_QUICK 1
+
 struct BlockSwapTransactionInfoFlags
 {
     UINT64 validFlag : 1;
+    UINT64 swapType : 1;
     UINT64 step1 : 1;
     UINT64 step2 : 1;
     UINT64 step3 : 1;
@@ -59,8 +63,14 @@ void BlockSwapTransactionLogAreaRecovery(struct BlockSwapTransactionLogArea * pA
 void BlockSwapTransactionLogAreaUninit(struct BlockSwapTransactionLogArea * pArea);
 void BlockSwapTransactionInit(struct BlockSwapTransaction * pTran, struct BlockSwapTransactionLogArea * pArea);
 void BlockSwapTransactionUninit(struct BlockSwapTransaction * pTran);
+void DoBlockCompleteSwapTransaction(struct BlockSwapTransaction * pTran, struct WearLeveler * wl,
+                                    physical_block_t oldBlock, physical_block_t newBlock, nvm_addr_t swapBlockAddr,
+                                    struct BlockInfo * oldBlockInfo, struct BlockInfo * newBlockInfo);
+void DoBlockQuickSwapTransaction(struct BlockSwapTransaction * pTran, struct WearLeveler * wl,
+                                 physical_block_t oldBlock, physical_block_t newBlock, struct BlockInfo * oldBlockInfo,
+                                 struct BlockInfo * newBlockInfo);
 void DoBlockSwapTransaction(struct BlockSwapTransaction * pTran, struct WearLeveler * wl, physical_block_t oldBlock,
-                            physical_block_t newBlock, nvm_addr_t swapBlockAddr, struct BlockInfo * oldBlockInfo,
+                            physical_block_t newBlock, struct BlockInfo * oldBlockInfo,
                             struct BlockInfo * newBlockInfo);
 
 #endif

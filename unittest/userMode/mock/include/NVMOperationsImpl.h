@@ -51,4 +51,7 @@ extern void UnittestNVMUninit(void);
 #define NVMStoreBarrierIMPL
 #define NVMBarrierIMPL()
 
+#define NVMCrashSimulateIMPL()
+#define NVMCrashRecoverySimulateIMPL()
+
 #endif

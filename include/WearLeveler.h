@@ -2,11 +2,13 @@
 #define WEAR_LEVELER_H
 
 #include "AvailBlockTable.h"
+#include "AvailPageTable.h"
 #include "BlockSwapTransactionLogArea.h"
 #include "BlockUnmapTable.h"
 #include "BlockWearTable.h"
 #include "Layouter.h"
 #include "MapTable.h"
+#include "PageSwapTransactionLogArea.h"
 #include "PageUnmapTable.h"
 #include "PageWearTable.h"
 #include "SuperBlock.h"
@@ -23,8 +25,10 @@ struct WearLeveler
     struct PageUnmapTable pageUnmapTable;
     struct PageWearTable pageWearTable;
     struct AvailBlockTable availBlockTable;
+    struct AvailPageTable availPageTable;
     struct SwapTable swapTable;
     struct BlockSwapTransactionLogArea blockSwapTransactionLogArea;
+    struct PageSwapTransactionLogArea pageSwapTransactionLogArea;
 };
 
 void WearLevelerInit(struct WearLeveler * wl);
@@ -33,5 +37,11 @@ void WearLevelerUninit(struct WearLeveler * wl);
 nvm_addr_t LogicAddressTranslate(struct WearLeveler * wl, logic_addr_t addr);
 void NVMBlockWearCountIncrease(struct WearLeveler * wl, logic_addr_t addr, UINT32 delta);
 void NVMPageWearCountIncrease(struct WearLeveler * wl, logic_addr_t addr, UINT32 delta);
+void NVMBlockSplit(struct WearLeveler * wl, logic_addr_t logicAddr, nvm_addr_t addr);
+void NVMPagesMerge(struct WearLeveler * wl, nvm_addr_t addr);
+void NVMBlockInUse(struct WearLeveler * wl, nvm_addr_t addr);
+void NVMPageInUse(struct WearLeveler * wl, nvm_addr_t addr);
+void NVMBlockTrim(struct WearLeveler * wl, nvm_addr_t addr);
+void NVMPageTrim(struct WearLeveler * wl, nvm_addr_t addr);
 
 #endif

@@ -16,7 +16,7 @@ TEST(BlockWearTableTest, WholeTest)
     BlockWearTableFormat(&tbl, 0, BLOCK_NUM);
     for (i = 0; i < BLOCK_NUM; ++i)
     {
-        UINT32 value = GetBlockWearCount(&tbl, i);
+        UINT32 value = BlockWearTableGet(&tbl, i);
         EXPECT_EQ(value, 0);
     }
 
@@ -26,12 +26,12 @@ TEST(BlockWearTableTest, WholeTest)
 
     for (i = 0; i < RAND_ARR_SIZE; ++i)
     {
-        UpdateBlockWearCount(&tbl, indice[i], values[i]);
+        BlockWearTableSet(&tbl, indice[i], values[i]);
     }
 
     for (i = 0; i < RAND_ARR_SIZE; ++i)
     {
-        UINT32 value = GetBlockWearCount(&tbl, indice[i]);
+        UINT32 value = BlockWearTableGet(&tbl, indice[i]);
         EXPECT_EQ(value, values[i]);
     }
 

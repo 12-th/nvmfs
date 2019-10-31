@@ -55,9 +55,11 @@ void BlockSwapTransactionUninit(struct BlockSwapTransaction * pTran)
 
 static void BlockSwapTransactionCommitStep1(struct BlockSwapTransaction * pTran, physical_block_t oldBlock,
                                             physical_block_t newBlock, nvm_addr_t swapBlockAddr,
-                                            struct BlockInfo * oldBlockInfo, struct BlockInfo * newBlockInfo)
+                                            struct BlockInfo * oldBlockInfo, struct BlockInfo * newBlockInfo,
+                                            UINT64 swapType)
 {
-    struct BlockSwapTransactionInfoFlags flags = {.validFlag = 1, .step1 = 1, .step2 = 0, .step3 = 0, .step4 = 0};
+    struct BlockSwapTransactionInfoFlags flags = {
+        .validFlag = 1, .step1 = 1, .step2 = 0, .step3 = 0, .step4 = 0, .swapType = swapType};
     struct BlockSwapTransactionInfo info = {.oldBlock = oldBlock,
                                             .newBlock = newBlock,
                                             .swapBlockAddr = swapBlockAddr,
@@ -67,40 +69,123 @@ static void BlockSwapTransactionCommitStep1(struct BlockSwapTransaction * pTran,
     //这里的数据应该先写下去，clflush以后再写flags
     NVMWrite(pTran->transactionInfoAddr, sizeof(info), &info);
 }
-static void BlockSwapTransactionCommitStepx(struct BlockSwapTransaction * pTran, UINT64 step)
+static void BlockSwapTransactionCommitStepx(struct BlockSwapTransaction * pTran, UINT64 step, UINT64 swapType)
 {
-    struct BlockSwapTransactionInfoFlags flags = {.validFlag = 1, .step1 = 1, .step2 = 0, .step3 = 0, .step4 = 0};
+    struct BlockSwapTransactionInfoFlags flags = {
+        .validFlag = 1, .step1 = 1, .step2 = 0, .step3 = 0, .step4 = 0, .swapType = swapType};
 
     switch (step)
     {
-    case BLOCK_SWAP_STEP2:
-        flags.step2 = 1;
-    case BLOCK_SWAP_STEP3:
-        flags.step3 = 1;
     case BLOCK_SWAP_STEP4:
         flags.step4 = 1;
+    case BLOCK_SWAP_STEP3:
+        flags.step3 = 1;
+    case BLOCK_SWAP_STEP2:
+        flags.step2 = 1;
     }
     NVMWrite(pTran->transactionInfoAddr + offsetof(struct BlockSwapTransactionInfo, flags), sizeof(flags), &flags);
 }
 
-void DoBlockSwapTransaction(struct BlockSwapTransaction * pTran, struct WearLeveler * wl, physical_block_t oldBlock,
-                            physical_block_t newBlock, nvm_addr_t swapBlockAddr, struct BlockInfo * oldBlockInfo,
-                            struct BlockInfo * newBlockInfo)
+void DoBlockCompleteSwapTransaction(struct BlockSwapTransaction * pTran, struct WearLeveler * wl,
+                                    physical_block_t oldBlock, physical_block_t newBlock, nvm_addr_t swapBlockAddr,
+                                    struct BlockInfo * oldBlockInfo, struct BlockInfo * newBlockInfo)
 {
-    BlockSwapTransactionCommitStep1(pTran, oldBlock, newBlock, swapBlockAddr, oldBlockInfo, newBlockInfo);
+    BlockSwapTransactionCommitStep1(pTran, oldBlock, newBlock, swapBlockAddr, oldBlockInfo, newBlockInfo,
+                                    BLOCK_SWAP_COMPLETE);
     NVMemcpy(swapBlockAddr, block_to_nvm_addr(oldBlock, &wl->layouter), SIZE_2M);
 
-    BlockSwapTransactionCommitStepx(pTran, BLOCK_SWAP_STEP2);
+    BlockSwapTransactionCommitStepx(pTran, BLOCK_SWAP_STEP2, BLOCK_SWAP_COMPLETE);
     NVMemcpy(block_to_nvm_addr(oldBlock, &wl->layouter), block_to_nvm_addr(newBlock, &wl->layouter), SIZE_2M);
 
-    BlockSwapTransactionCommitStepx(pTran, BLOCK_SWAP_STEP3);
+    BlockSwapTransactionCommitStepx(pTran, BLOCK_SWAP_STEP3, BLOCK_SWAP_COMPLETE);
     NVMemcpy(block_to_nvm_addr(newBlock, &wl->layouter), swapBlockAddr, SIZE_2M);
     BlockUnmapTableSet(&wl->blockUnmapTable, oldBlock, newBlockInfo);
     BlockUnmapTableSet(&wl->blockUnmapTable, newBlock, oldBlockInfo);
     BlockMapModify(&wl->mapTable, oldBlockInfo->unmapBlock, newBlock);
     BlockMapModify(&wl->mapTable, newBlockInfo->unmapBlock, oldBlock);
 
-    BlockSwapTransactionCommitStepx(pTran, BLOCK_SWAP_STEP4);
+    BlockSwapTransactionCommitStepx(pTran, BLOCK_SWAP_STEP4, BLOCK_SWAP_COMPLETE);
+}
+
+void DoBlockQuickSwapTransaction(struct BlockSwapTransaction * pTran, struct WearLeveler * wl,
+                                 physical_block_t oldBlock, physical_block_t newBlock, struct BlockInfo * oldBlockInfo,
+                                 struct BlockInfo * newBlockInfo)
+{
+    BlockSwapTransactionCommitStep1(pTran, oldBlock, newBlock, 0, oldBlockInfo, newBlockInfo, BLOCK_SWAP_QUICK);
+    NVMemcpy(block_to_nvm_addr(newBlock, &wl->layouter), block_to_nvm_addr(oldBlock, &wl->layouter), SIZE_2M);
+    BlockUnmapTableSet(&wl->blockUnmapTable, oldBlock, newBlockInfo);
+    BlockUnmapTableSet(&wl->blockUnmapTable, newBlock, oldBlockInfo);
+    BlockMapModify(&wl->mapTable, oldBlockInfo->unmapBlock, newBlock);
+    BlockMapModify(&wl->mapTable, newBlockInfo->unmapBlock, oldBlock);
+    BlockSwapTransactionCommitStepx(pTran, BLOCK_SWAP_STEP2, BLOCK_SWAP_QUICK);
+}
+
+void DoBlockSwapTransaction(struct BlockSwapTransaction * pTran, struct WearLeveler * wl, physical_block_t oldBlock,
+                            physical_block_t newBlock, struct BlockInfo * oldBlockInfo, struct BlockInfo * newBlockInfo)
+{
+    nvm_addr_t swapBlockAddr;
+
+    if (newBlockInfo->busy)
+    {
+        swapBlockAddr = GetSwapBlock(&wl->swapTable);
+        DoBlockCompleteSwapTransaction(pTran, wl, oldBlock, newBlock, swapBlockAddr, oldBlockInfo, newBlockInfo);
+    }
+    else
+    {
+        DoBlockQuickSwapTransaction(pTran, wl, oldBlock, newBlock, oldBlockInfo, newBlockInfo);
+    }
+}
+
+static void BlockCompleteSwapTransactionRecovery(struct BlockSwapTransaction * pTran, struct WearLeveler * wl,
+                                                 struct BlockSwapTransactionInfo * info,
+                                                 struct BlockSwapTransactionLogArea * pArea)
+{
+    UINT64 step;
+
+    step = StepOfBlockSwapTransactionInfo(info);
+    switch (step)
+    {
+    case BLOCK_SWAP_STEP1:
+        NVMemcpy(info->swapBlockAddr, block_to_nvm_addr(info->oldBlock, &wl->layouter), SIZE_2M);
+        BlockSwapTransactionCommitStepx(pTran, BLOCK_SWAP_STEP2, BLOCK_SWAP_COMPLETE);
+
+    case BLOCK_SWAP_STEP2:
+        NVMemcpy(block_to_nvm_addr(info->oldBlock, &wl->layouter), block_to_nvm_addr(info->newBlock, &wl->layouter),
+                 SIZE_2M);
+        BlockSwapTransactionCommitStepx(pTran, BLOCK_SWAP_STEP3, BLOCK_SWAP_COMPLETE);
+    case BLOCK_SWAP_STEP3:
+        NVMemcpy(block_to_nvm_addr(info->newBlock, &wl->layouter), info->swapBlockAddr, SIZE_2M);
+        BlockUnmapTableSet(&wl->blockUnmapTable, info->oldBlock, &info->newBlockInfo);
+        BlockUnmapTableSet(&wl->blockUnmapTable, info->newBlock, &info->oldBlockInfo);
+        BlockMapModify(&wl->mapTable, info->oldBlockInfo.unmapBlock, info->newBlock);
+        BlockMapModify(&wl->mapTable, info->newBlockInfo.unmapBlock, info->oldBlock);
+        BlockSwapTransactionCommitStepx(pTran, BLOCK_SWAP_STEP4, BLOCK_SWAP_COMPLETE);
+        UpdateLogAreaIndex(pArea);
+    case BLOCK_SWAP_STEP4:
+        break;
+    }
+}
+
+static void BlockQuickSwapTransactionRecovery(struct BlockSwapTransaction * pTran, struct WearLeveler * wl,
+                                              struct BlockSwapTransactionInfo * info,
+                                              struct BlockSwapTransactionLogArea * pArea)
+{
+    UINT64 step;
+
+    step = StepOfBlockSwapTransactionInfo(info);
+    switch (step)
+    {
+    case BLOCK_SWAP_STEP1:
+        NVMemcpy(block_to_nvm_addr(info->newBlock, &wl->layouter), block_to_nvm_addr(info->oldBlock, &wl->layouter),
+                 SIZE_2M);
+        BlockUnmapTableSet(&wl->blockUnmapTable, info->oldBlock, &info->newBlockInfo);
+        BlockUnmapTableSet(&wl->blockUnmapTable, info->newBlock, &info->oldBlockInfo);
+        BlockMapModify(&wl->mapTable, info->oldBlockInfo.unmapBlock, info->newBlock);
+        BlockMapModify(&wl->mapTable, info->newBlockInfo.unmapBlock, info->oldBlock);
+        BlockSwapTransactionCommitStepx(pTran, BLOCK_SWAP_STEP2, BLOCK_SWAP_QUICK);
+    case BLOCK_SWAP_STEP2:
+        break;
+    }
 }
 
 void BlockSwapTransactionLogAreaRecovery(struct BlockSwapTransactionLogArea * pArea, nvm_addr_t addr,
@@ -126,29 +211,13 @@ void BlockSwapTransactionLogAreaRecovery(struct BlockSwapTransactionLogArea * pA
 
         if (info.flags.validFlag)
         {
-            UINT64 step;
-
-            step = StepOfBlockSwapTransactionInfo(&info);
-            switch (step)
+            if (info.flags.swapType == BLOCK_SWAP_COMPLETE)
             {
-            case BLOCK_SWAP_STEP1:
-                NVMemcpy(info.swapBlockAddr, block_to_nvm_addr(info.oldBlock, &wl->layouter), SIZE_2M);
-                BlockSwapTransactionCommitStepx(&tran, BLOCK_SWAP_STEP2);
-
-            case BLOCK_SWAP_STEP2:
-                NVMemcpy(block_to_nvm_addr(info.oldBlock, &wl->layouter),
-                         block_to_nvm_addr(info.newBlock, &wl->layouter), SIZE_2M);
-                BlockSwapTransactionCommitStepx(&tran, BLOCK_SWAP_STEP3);
-            case BLOCK_SWAP_STEP3:
-                NVMemcpy(block_to_nvm_addr(info.newBlock, &wl->layouter), info.swapBlockAddr, SIZE_2M);
-                BlockUnmapTableSet(&wl->blockUnmapTable, info.oldBlock, &info.newBlockInfo);
-                BlockUnmapTableSet(&wl->blockUnmapTable, info.newBlock, &info.oldBlockInfo);
-                BlockMapModify(&wl->mapTable, info.oldBlockInfo.unmapBlock, info.newBlock);
-                BlockMapModify(&wl->mapTable, info.newBlockInfo.unmapBlock, info.oldBlock);
-                BlockSwapTransactionCommitStepx(&tran, BLOCK_SWAP_STEP4);
-                UpdateLogAreaIndex(pArea);
-            case BLOCK_SWAP_STEP4:
-                break;
+                BlockCompleteSwapTransactionRecovery(&tran, wl, &info, pArea);
+            }
+            else
+            {
+                BlockQuickSwapTransactionRecovery(&tran, wl, &info, pArea);
             }
         }
     }

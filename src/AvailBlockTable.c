@@ -94,7 +94,7 @@ void AvailBlockTableRebuild(struct AvailBlockTable * pTable, struct BlockWearTab
     AvailBlockTableInit(pTable, blockNum);
     for (i = 0; i < blockNum; ++i)
     {
-        UINT32 wearCount = GetBlockWearCount(pWearTable, i);
+        UINT32 wearCount = BlockWearTableGet(pWearTable, i);
         UINT64 index = wearCount / STEP_WEAR_COUNT;
 
         AddBlockToTail(pTable, index, i);
