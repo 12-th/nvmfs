@@ -111,7 +111,9 @@ static struct PageGroup * PageGroupGet(struct AvailPageTable * pTable, struct Pa
     {
         struct PageGroup * pOutGroup = container_of(pTable->lruHead.prev, struct PageGroup, lruList);
         list_del(&pOutGroup->lruList);
+        pTable->hashTable[pOutGroup->block] = NULL;
         kfree(pOutGroup);
+        pTable->count--;
     }
     return pGroup;
 }
