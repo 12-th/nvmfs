@@ -133,8 +133,9 @@ static inline physical_page_t RelativeIndexToPage(int index, physical_block_t bl
     return (block << (BITS_2M - BITS_4K)) + index;
 }
 
-int AvailPageTableSwapPrepare(struct AvailPageTable * pTable, struct PageWearTable * pageWearTable,
-                              physical_page_t oldPage, physical_page_t * newPage, UINT32 wearCountThreshold)
+void AvailPageTableSwapPrepare(struct AvailPageTable * pTable, struct PageWearTable * pageWearTable,
+                               physical_page_t oldPage, physical_page_t * newPage, UINT32 wearCountThreshold,
+                               int * shouldSwapBlock)
 {
     struct PageGroup * pGroup;
     physical_block_t block;
@@ -147,12 +148,12 @@ int AvailPageTableSwapPrepare(struct AvailPageTable * pTable, struct PageWearTab
     indexOfNewPage = BitmapZeroGet(pGroup->bitmap);
     if (indexOfNewPage == -1)
     {
-        return 1;
+        *shouldSwapBlock = 1;
     }
 
     BitmapSet(pGroup->bitmap, indexOfNewPage);
     *newPage = RelativeIndexToPage(indexOfNewPage, block);
-    return 0;
+    *shouldSwapBlock = 0;
 }
 
 void AvailPageTableSwapEnd(struct AvailPageTable * pTable, physical_page_t newPage, UINT32 newPageWearCount)

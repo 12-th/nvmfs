@@ -5,80 +5,113 @@
 #include "common.h"
 #include <linux/slab.h>
 
-nvm_addr_t LogicAddressTranslate(struct WearLeveler * wl, logic_addr_t addr)
+static inline void NVMAccessLockForSwap(struct NVMAccessController * acl, logic_addr_t addr1, logic_addr_t addr2)
 {
-    return MapAddressQuery(&wl->mapTable, addr);
+    if (addr1 < addr2)
+    {
+        NVMAccessControllerUniqueLock(acl, addr1);
+        NVMAccessControllerUniqueLock(acl, addr2);
+    }
+    else
+    {
+        NVMAccessControllerUniqueLock(acl, addr2);
+        NVMAccessControllerUniqueLock(acl, addr1);
+    }
 }
 
-void NVMBlockWearCountIncrease(struct WearLeveler * wl, logic_addr_t logicAddr, UINT32 delta)
+static inline void NVMAccessUnlockForSwap(struct NVMAccessController * acl, logic_addr_t addr1, logic_addr_t addr2)
+{
+    if (addr1 < addr2)
+    {
+        NVMAccessControllerUniqueUnlock(acl, addr2);
+        NVMAccessControllerUniqueUnlock(acl, addr1);
+    }
+    else
+    {
+        NVMAccessControllerUniqueUnlock(acl, addr1);
+        NVMAccessControllerUniqueUnlock(acl, addr2);
+    }
+}
+
+static void NVMBlockWearCountIncrease(struct WearLeveler * wl, logic_addr_t logicAddr, UINT32 delta)
 {
     UINT32 oldBlockOldWearCount, oldBlockNewWearCount;
     UINT32 newBlockOldWearCount;
-    physical_block_t newBlock, oldBlock;
-    struct BlockInfo newBlockInfo, oldBlockInfo;
+    struct BlockMapInfo oldBlockInfo, newBlockInfo;
+    physical_block_t newBlock;
     struct BlockSwapTransaction tran;
 
-    oldBlock = nvm_addr_to_block(MapAddressQuery(&wl->mapTable, logicAddr), &wl->layouter);
-    oldBlockOldWearCount = BlockWearTableGet(&wl->blockWearTable, oldBlock);
+    BlockWearCountIncreasePrepare(&wl->mapInfoManager, logicAddr);
+    BlockMapInfoBuildFromLogicalBlock(&oldBlockInfo, &wl->mapInfoManager, logical_addr_to_block(logicAddr));
+    oldBlockOldWearCount = BlockWearTableGet(&wl->blockWearTable, logical_addr_to_block(logicAddr));
     oldBlockNewWearCount = oldBlockOldWearCount + delta;
     if (!IsCrossWearCountThreshold(oldBlockOldWearCount, oldBlockNewWearCount))
     {
-        BlockWearTableSet(&wl->blockWearTable, oldBlock, oldBlockNewWearCount);
+        BlockWearTableSet(&wl->blockWearTable, oldBlockInfo.physBlock, oldBlockNewWearCount);
+        BlockWearCountIncreaseEnd(&wl->mapInfoManager, logicAddr);
         return;
     }
+    BlockWearCountIncreaseEnd(&wl->mapInfoManager, logicAddr);
 
-    BlockWearTableSet(&wl->blockWearTable, oldBlock, oldBlockNewWearCount + 1);
-    AvailBlockTableSwapPrepare(&wl->availBlockTable, oldBlock, &newBlock);
-    BlockUnmapTableGet(&wl->blockUnmapTable, newBlock, &newBlockInfo);
-    BlockUnmapTableGet(&wl->blockUnmapTable, oldBlock, &oldBlockInfo);
+    oldBlockNewWearCount++;
+    BlockWearTableSet(&wl->blockWearTable, oldBlockInfo.physBlock, oldBlockNewWearCount);
+    AvailBlockTableSwapPrepare(&wl->availBlockTable, oldBlockInfo.physBlock, &newBlock);
+    BlockSwapPrepare(&wl->mapInfoManager, &oldBlockInfo, &newBlockInfo, oldBlockInfo.physBlock, newBlock);
+    newBlockOldWearCount = BlockWearTableGet(&wl->blockWearTable, newBlockInfo.physBlock);
 
     BlockSwapTransactionInit(&tran, &wl->blockSwapTransactionLogArea);
-    DoBlockSwapTransaction(&tran, wl, oldBlock, newBlock, &oldBlockInfo, &newBlockInfo);
+    DoBlockSwapTransaction(&tran, &wl->mapInfoManager, &oldBlockInfo, &newBlockInfo, &wl->swapTable,
+                           DataStartAddrQuery(&wl->layouter));
     BlockSwapTransactionUninit(&tran);
 
-    newBlockOldWearCount = BlockWearTableGet(&wl->blockWearTable, newBlock);
-    AvailBlockTableSwapEnd(&wl->availBlockTable, oldBlock, oldBlockNewWearCount / STEP_WEAR_COUNT, newBlock,
-                           (newBlockOldWearCount + 1) / STEP_WEAR_COUNT);
-    BlockWearTableSet(&wl->blockWearTable, newBlock, newBlockOldWearCount + 1);
+    BlockSwapEnd(&wl->mapInfoManager, &oldBlockInfo, &newBlockInfo);
+    AvailBlockTableSwapEnd(&wl->availBlockTable, oldBlockInfo.physBlock, oldBlockNewWearCount / STEP_WEAR_COUNT,
+                           newBlockInfo.physBlock, (newBlockOldWearCount + 1) / STEP_WEAR_COUNT);
+    BlockWearTableSet(&wl->blockWearTable, newBlockInfo.physBlock, newBlockOldWearCount + 1);
 }
 
-void NVMPageWearCountIncrease(struct WearLeveler * wl, logic_addr_t addr, UINT32 delta)
+static void NVMPageWearCountIncrease(struct WearLeveler * wl, logic_addr_t addr, UINT32 delta)
 {
     UINT32 oldPageOldWearCount, newPageOldWearCount, oldPageNewWearCount;
-    physical_block_t block;
-    physical_page_t oldPage, newPage;
+    struct PageMapInfo oldPageInfo, newPageInfo;
     UINT32 wearCountThreshold, blockWearCount;
+    int shouldSwapBlock;
     struct PageSwapTransaction tran;
-    struct PageInfo oldPageInfo, newPageInfo;
 
-    oldPage = nvm_addr_to_page(MapAddressQuery(&wl->mapTable, addr), &wl->layouter);
-    block = page_to_block(oldPage);
-    oldPageOldWearCount = PageWearTableGet(&wl->pageWearTable, oldPage);
+    PageWearCountIncreasePrepare(&wl->mapInfoManager, addr);
+    PageMapInfoBuildFromLogicalPage(&oldPageInfo, &wl->mapInfoManager, logical_addr_to_page(addr));
+    oldPageOldWearCount = PageWearTableGet(&wl->pageWearTable, oldPageInfo.physPage);
     oldPageNewWearCount = oldPageOldWearCount + delta;
     if (!IsCrossWearCountThreshold(oldPageOldWearCount, oldPageNewWearCount))
     {
-        PageWearCountSet(&wl->pageWearTable, oldPage, oldPageNewWearCount);
+        PageWearCountSet(&wl->pageWearTable, oldPageInfo.physPage, oldPageNewWearCount);
+        PageWearCountIncreaseEnd(&wl->mapInfoManager, addr);
         return;
     }
 
-    PageWearCountSet(&wl->pageWearTable, oldPage, oldPageNewWearCount + 1);
-    blockWearCount = BlockWearTableGet(&wl->blockWearTable, block);
+    PageWearCountSet(&wl->pageWearTable, oldPageInfo.physPage, oldPageNewWearCount + 1);
+    blockWearCount = BlockWearTableGet(&wl->blockWearTable, page_to_block(oldPageInfo.physPage));
     wearCountThreshold = NextWearCountThreshold(blockWearCount);
-    if (AvailPageTableSwapPrepare(&wl->availPageTable, &wl->pageWearTable, oldPage, &newPage, wearCountThreshold))
+    AvailPageTableSwapPrepare(&wl->availPageTable, &wl->pageWearTable, oldPageInfo.physPage, &newPageInfo.physPage,
+                              wearCountThreshold, &shouldSwapBlock);
+    if (shouldSwapBlock)
     {
+        PageWearCountIncreaseEnd(&wl->mapInfoManager, addr);
         NVMBlockWearCountIncrease(wl, addr, wearCountThreshold - blockWearCount);
         return;
     }
 
-    PageUnmapTableGet(&wl->pageUnmapTable, oldPage, &oldPageInfo);
-    PageUnmapTableGet(&wl->pageUnmapTable, newPage, &newPageInfo);
+    PageWearCountIncreaseToSwapPrepare(&wl->mapInfoManager, &oldPageInfo, &newPageInfo, oldPageInfo.physPage,
+                                       newPageInfo.physPage);
     PageSwapTransactionInit(&tran, &wl->pageSwapTransactionLogArea);
-    DoPageSwapTransaction(&tran, wl, oldPage, newPage, &oldPageInfo, &newPageInfo, block_to_page(block));
+    DoPageSwapTransaction(&tran, &oldPageInfo, &newPageInfo, &wl->mapInfoManager, &wl->swapTable,
+                          DataStartAddrQuery(&wl->layouter));
     PageSwapTransactionUninit(&tran);
+    PageSwapEnd(&wl->mapInfoManager, &oldPageInfo, &newPageInfo);
 
-    newPageOldWearCount = PageWearTableGet(&wl->pageWearTable, newPage);
-    AvailPageTableSwapEnd(&wl->availPageTable, newPage, newPageOldWearCount + 1);
-    PageWearCountSet(&wl->pageWearTable, newPage, newPageOldWearCount + 1);
+    newPageOldWearCount = PageWearTableGet(&wl->pageWearTable, newPageInfo.physPage);
+    AvailPageTableSwapEnd(&wl->availPageTable, newPageInfo.physPage, newPageOldWearCount + 1);
+    PageWearCountSet(&wl->pageWearTable, newPageInfo.physPage, newPageOldWearCount + 1);
 }
 
 void WearLevelerInit(struct WearLeveler * wl)
@@ -90,12 +123,9 @@ void WearLevelerInit(struct WearLeveler * wl)
     pageNum = PageNumQuery(&wl->layouter);
 
     BlockWearTableInit(&wl->blockWearTable, BlockWearTableAddrQuery(&wl->layouter), blockNum);
-    BlockUnmapTableInit(&wl->blockUnmapTable, BlockUnmapTableAddrQuery(&wl->layouter), blockNum);
-    PageUnmapTableInit(&wl->pageUnmapTable, &wl->blockUnmapTable, PageUnmapTableAddrQuery(&wl->layouter), pageNum);
     PageWearTableInit(&wl->pageWearTable, PageUnmapTableAddrQuery(&wl->layouter), pageNum);
+    MapInfoManagerInit(&wl->mapInfoManager, &wl->layouter);
 
-    MapTableRebuild(&wl->mapTable, &wl->blockUnmapTable, &wl->pageUnmapTable, blockNum, wl->nvmBaseAddr,
-                    DataStartAddrQuery(&wl->layouter));
     AvailBlockTableRebuild(&wl->availBlockTable, &wl->blockWearTable, blockNum);
     AvailPageTableInit(&wl->availPageTable, pageNum);
     SwapTableInit(&wl->swapTable, SwapTableMetadataAddrQuery(&wl->layouter));
@@ -116,13 +146,9 @@ void WearLevelerFormat(struct WearLeveler * wl, UINT64 nvmSizeBits, UINT64 nvmBa
     pageNum = PageNumQuery(&wl->layouter);
 
     BlockWearTableFormat(&wl->blockWearTable, BlockWearTableAddrQuery(&wl->layouter), blockNum);
-    BlockUnmapTableFormat(&wl->blockUnmapTable, BlockUnmapTableAddrQuery(&wl->layouter), blockNum);
-    PageUnmapTableFormat(&wl->pageUnmapTable, &wl->blockUnmapTable, PageUnmapTableAddrQuery(&wl->layouter), pageNum,
-                         PageUnmapTableSizeQuery(&wl->layouter));
     PageWearTableFormat(&wl->pageWearTable, PageWearTableAddrQuery(&wl->layouter), pageNum);
+    MapInfoManagerFormat(&wl->mapInfoManager, &wl->layouter);
 
-    MapTableRebuild(&wl->mapTable, &wl->blockUnmapTable, &wl->pageUnmapTable, blockNum, wl->nvmBaseAddr,
-                    DataStartAddrQuery(&wl->layouter));
     AvailBlockTableRebuild(&wl->availBlockTable, &wl->blockWearTable, blockNum);
     AvailPageTableInit(&wl->availPageTable, pageNum);
     SwapTableFormat(&wl->swapTable, SwapTableMetadataAddrQuery(&wl->layouter), SwapTableBlocksNumQuery(&wl->layouter),
@@ -139,10 +165,8 @@ void WearLevelerUninit(struct WearLeveler * wl)
     BlockSwapTransactionLogAreaUninit(&wl->blockSwapTransactionLogArea);
     SwapTableUninit(&wl->swapTable);
     AvailBlockTableUninit(&wl->availBlockTable);
-    MapTableUninit(&wl->mapTable);
     PageWearTableUninit(&wl->pageWearTable);
-    PageUnmapTableUninit(&wl->pageUnmapTable);
-    BlockUnmapTableUninit(&wl->blockUnmapTable);
+    MapInfoManagerUninit(&wl->mapInfoManager);
     BlockWearTableUninit(&wl->blockWearTable);
 }
 
@@ -166,85 +190,42 @@ void WearLevelerLaunch(struct WearLeveler * wl, UINT64 nvmBaseAddr)
     };
 }
 
-void NVMBlockSplit(struct WearLeveler * wl, logic_addr_t logicAddr, nvm_addr_t addr)
+void NVMBlockSplit(struct WearLeveler * wl, logic_addr_t addr)
 {
-    physical_block_t block;
-    struct BlockInfo info;
-    UINT32 blockWearCount;
-
-    block = nvm_addr_to_block(addr, &wl->layouter);
-    blockWearCount = BlockWearTableGet(&wl->blockWearTable, block);
-    BlockUnmapTableGet(&wl->blockUnmapTable, block, &info);
-    PageUnmapTableBatchFormat(&wl->pageUnmapTable, block, info.busy);
-    PageWearTableBatchSet(&wl->pageWearTable, block_to_page(block), blockWearCount);
-    info.fineGrain = 1;
-    BlockUnmapTableSet(&wl->blockUnmapTable, block, &info);
-    MapTableSplitBlockMap(&wl->mapTable, logical_addr_to_block(logicAddr), block);
+    MapInfoManagerSplit(&wl->mapInfoManager, addr, &wl->blockWearTable, &wl->pageWearTable);
 }
 
-void NVMPagesMerge(struct WearLeveler * wl, nvm_addr_t addr)
+void NVMPagesMerge(struct WearLeveler * wl, logic_addr_t addr)
 {
-    physical_block_t block;
-    physical_page_t page;
-    UINT32 * wearCounts;
-    UINT64 sum = 0;
-    int i;
-    struct BlockInfo info;
+    MapInfoManagerMerge(&wl->mapInfoManager, addr, &wl->blockWearTable, &wl->pageWearTable);
+}
 
-    wearCounts = kmalloc(sizeof(UINT32) * 512, GFP_KERNEL);
-    block = nvm_addr_to_block(addr, &wl->layouter);
-    page = block_to_page(block);
-    PageWearTableBatchGet(&wl->pageWearTable, page, wearCounts);
-    BlockUnmapTableGet(&wl->blockUnmapTable, block, &info);
-    for (i = 0; i < 512; ++i)
+int WearLevelerRead(struct WearLeveler * wl, logic_addr_t addr, void * buffer, UINT32 size)
+{
+    return MapInfoManagerRead(&wl->mapInfoManager, addr, buffer, size);
+}
+
+UINT32 WearLevelerWrite(struct WearLeveler * wl, logic_addr_t addr, void * buffer, UINT32 size,
+                        UINT32 increasedWearCount)
+{
+    int writeSize;
+
+    writeSize = MapInfoManagerWrite(&wl->mapInfoManager, addr, buffer, size);
+    if (increasedWearCount)
     {
-        sum += wearCounts[i];
+        if (!MapInfoManagerIsBlockSplited(&wl->mapInfoManager, addr))
+        {
+            NVMBlockWearCountIncrease(wl, addr, increasedWearCount);
+        }
+        else
+        {
+            NVMPageWearCountIncrease(wl, addr, increasedWearCount);
+        }
     }
-    BlockWearTableSet(&wl->blockWearTable, block, sum / 512);
-    info.fineGrain = 0;
-    BlockUnmapTableSet(&wl->blockUnmapTable, block, &info);
+    return writeSize;
 }
 
-void NVMBlockInUse(struct WearLeveler * wl, nvm_addr_t addr)
+void WearLevelerTrim(struct WearLeveler * wl, logic_addr_t addr)
 {
-    physical_block_t block;
-    struct BlockInfo info;
-
-    block = nvm_addr_to_block(addr, &wl->layouter);
-    BlockUnmapTableGet(&wl->blockUnmapTable, block, &info);
-    info.busy = 1;
-    BlockUnmapTableSet(&wl->blockUnmapTable, block, &info);
-}
-
-void NVMPageInUse(struct WearLeveler * wl, nvm_addr_t addr)
-{
-    physical_page_t page;
-    struct PageInfo info;
-
-    page = nvm_addr_to_page(addr, &wl->layouter);
-    PageUnmapTableGet(&wl->pageUnmapTable, page, &info);
-    info.busy = 1;
-    PageUnmapTableSet(&wl->pageUnmapTable, page, &info);
-}
-
-void NVMBlockTrim(struct WearLeveler * wl, nvm_addr_t addr)
-{
-    physical_block_t block;
-    struct BlockInfo info;
-
-    block = nvm_addr_to_block(addr, &wl->layouter);
-    BlockUnmapTableGet(&wl->blockUnmapTable, block, &info);
-    info.busy = 0;
-    BlockUnmapTableSet(&wl->blockUnmapTable, block, &info);
-}
-
-void NVMPageTrim(struct WearLeveler * wl, nvm_addr_t addr)
-{
-    physical_page_t page;
-    struct PageInfo info;
-
-    page = nvm_addr_to_page(addr, &wl->layouter);
-    PageUnmapTableGet(&wl->pageUnmapTable, page, &info);
-    info.busy = 0;
-    PageUnmapTableSet(&wl->pageUnmapTable, page, &info);
+    MapInfoManagerTrim(&wl->mapInfoManager, addr);
 }

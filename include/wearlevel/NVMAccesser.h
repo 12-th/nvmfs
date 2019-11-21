@@ -3,23 +3,17 @@
 
 #include "Types.h"
 
-struct WearLeveler;
-
-struct NVMAccesserFlags
-{
-    UINT64 pageOrBlock : 1;
-};
-
 struct NVMAccesser
 {
-    logic_addr_t addr;
-    struct NVMAccesserFlags flags;
     struct WearLeveler * wl;
 };
 
-void NVMAccesserInit(struct NVMAccesser * acc, struct WearLeveler * wl, logic_addr_t addr,
-                     enum NVMAccesserRangeSize type);
-void NVMAccesserRead(struct NVMAccesser * acc, UINT64 offset, UINT64 size, void * buffer);
-void NVMAccesserWrite(struct NVMAccesser * acc, UINT64 offset, UINT64 size, void * buffer);
+void NVMAccesserInit(struct NVMAccesser * acc, struct WearLeveler * wl);
+void NVMAccesserUninit(struct NVMAccesser * acc);
+void NVMAccesserSplit(struct NVMAccesser * acc, logic_addr_t addr);
+void NVMAccesserMerge(struct NVMAccesser * acc, logic_addr_t addr);
+int NVMAccesserRead(struct NVMAccesser * acc, logic_addr_t addr, UINT64 size, void * buffer);
+int NVMAccesserWrite(struct NVMAccesser * acc, logic_addr_t addr, UINT64 size, void * buffer, int increaseWearCount);
+void NVMAccesserTrim(struct NVMAccesser * acc, logic_addr_t addr);
 
 #endif

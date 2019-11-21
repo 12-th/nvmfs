@@ -5,8 +5,15 @@
 #include <linux/random.h>
 #include <linux/slab.h>
 
+static __attribute__((unused)) UINT32 GetRandNumber(void)
+{
+    UINT32 value;
 
-static __attribute__ ((unused)) UINT32 * GenRandomArray(UINT32 size)
+    get_random_bytes(&value, sizeof(value));
+    return value;
+}
+
+static __attribute__((unused)) UINT32 * GenRandomArray(UINT32 size)
 {
     UINT32 * arr;
     int i;
@@ -22,7 +29,7 @@ static __attribute__ ((unused)) UINT32 * GenRandomArray(UINT32 size)
     return arr;
 }
 
-static __attribute__ ((unused)) UINT32 * GenSeqArray(int size)
+static __attribute__((unused)) UINT32 * GenSeqArray(int size)
 {
     UINT32 * arr;
     int i;
@@ -35,7 +42,7 @@ static __attribute__ ((unused)) UINT32 * GenSeqArray(int size)
     return arr;
 }
 
-static __attribute__ ((unused)) UINT32 * Shuffle(UINT32 * arr, int size)
+static __attribute__((unused)) UINT32 * Shuffle(UINT32 * arr, int size)
 {
     int i;
 

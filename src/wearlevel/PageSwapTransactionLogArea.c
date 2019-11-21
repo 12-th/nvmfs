@@ -1,6 +1,6 @@
 #include "Config.h"
 #include "Layouter.h"
-#include "MapTable.h"
+#include "MapInfoManager.h"
 #include "NVMOperations.h"
 #include "PageSwapTransactionLogArea.h"
 #include "PageUnmapTable.h"
@@ -82,52 +82,47 @@ void PageSwapTransactionUninit(struct PageSwapTransaction * pTran)
 {
 }
 
-void DoPageQuickSwapTransaction(struct PageSwapTransaction * pTran, struct WearLeveler * wl, physical_page_t oldPage,
-                                physical_page_t newPage, struct PageInfo * oldPageInfo, struct PageInfo * newPageInfo,
-                                logical_page_t basePageSeq)
+void DoPageQuickSwapTransaction(struct PageSwapTransaction * pTran, struct PageMapInfo * oldPageInfo,
+                                struct PageMapInfo * newPageInfo, nvm_addr_t dataStartOffset,
+                                struct MapInfoManager * manager)
 {
-    PageSwapTransactionCommitStep1(pTran, oldPage, newPage, oldPageInfo, newPageInfo, PAGE_SWAP_QUICK);
-    NVMemcpy(page_to_nvm_addr(newPage, &wl->layouter), page_to_nvm_addr(oldPage, &wl->layouter), PAGE_SIZE);
-    PageUnmapTableSet(&wl->pageUnmapTable, newPage, oldPageInfo);
-    PageUnmapTableSet(&wl->pageUnmapTable, oldPage, newPageInfo);
-    PageMapModify(&wl->mapTable, basePageSeq + oldPageInfo->unmapPage, newPage);
-    PageMapModify(&wl->mapTable, basePageSeq + newPageInfo->unmapPage, oldPage);
+    PageSwapTransactionCommitStep1(pTran, oldPageInfo->physPage, newPageInfo->physPage, &oldPageInfo->pageInfo,
+                                   &newPageInfo->pageInfo, PAGE_SWAP_QUICK);
+    NVMemcpy(page_to_nvm_addr(newPageInfo->physPage, dataStartOffset),
+             page_to_nvm_addr(oldPageInfo->physPage, dataStartOffset), PAGE_SIZE);
+    MapInfoManagerSwapPage(manager, oldPageInfo, newPageInfo);
     PageSwapTransactionCommitStepx(pTran, PAGE_SWAP_STEP2, PAGE_SWAP_QUICK);
 }
 
-void DoPageCompleteSwapTransaction(struct PageSwapTransaction * pTran, struct WearLeveler * wl, physical_page_t oldPage,
-                                   physical_page_t newPage, struct PageInfo * oldPageInfo,
-                                   struct PageInfo * newPageInfo, nvm_addr_t swapPageAddr, logical_page_t basePageSeq)
+void DoPageCompleteSwapTransaction(struct PageSwapTransaction * pTran, struct PageMapInfo * oldPageInfo,
+                                   struct PageMapInfo * newPageInfo, nvm_addr_t dataStartOffset,
+                                   struct MapInfoManager * manager, nvm_addr_t swapPageAddr)
 {
-    PageSwapTransactionCommitStep1(pTran, oldPage, newPage, oldPageInfo, newPageInfo, PAGE_SWAP_COMPLETE);
-    NVMemcpy(swapPageAddr, page_to_nvm_addr(oldPage, &wl->layouter), SIZE_4K);
+    PageSwapTransactionCommitStep1(pTran, oldPageInfo->physPage, newPageInfo->physPage, &oldPageInfo->pageInfo,
+                                   &newPageInfo->pageInfo, PAGE_SWAP_COMPLETE);
+    NVMemcpy(swapPageAddr, page_to_nvm_addr(oldPageInfo->physPage, dataStartOffset), SIZE_4K);
 
     PageSwapTransactionCommitStepx(pTran, PAGE_SWAP_STEP2, PAGE_SWAP_COMPLETE);
-    NVMemcpy(page_to_nvm_addr(oldPage, &wl->layouter), page_to_nvm_addr(newPage, &wl->layouter), SIZE_4K);
+    NVMemcpy(page_to_nvm_addr(oldPageInfo->physPage, dataStartOffset),
+             page_to_nvm_addr(newPageInfo->physPage, dataStartOffset), SIZE_4K);
 
     PageSwapTransactionCommitStepx(pTran, PAGE_SWAP_STEP3, PAGE_SWAP_COMPLETE);
-    NVMemcpy(page_to_nvm_addr(newPage, &wl->layouter), swapPageAddr, SIZE_4K);
-    PageUnmapTableSet(&wl->pageUnmapTable, newPage, oldPageInfo);
-    PageUnmapTableSet(&wl->pageUnmapTable, oldPage, newPageInfo);
-    PageMapModify(&wl->mapTable, basePageSeq + oldPageInfo->unmapPage, newPage);
-    PageMapModify(&wl->mapTable, basePageSeq + newPageInfo->unmapPage, oldPage);
-
+    NVMemcpy(page_to_nvm_addr(newPageInfo->physPage, dataStartOffset), swapPageAddr, SIZE_4K);
+    MapInfoManagerSwapPage(manager, oldPageInfo, newPageInfo);
     PageSwapTransactionCommitStepx(pTran, PAGE_SWAP_STEP4, PAGE_SWAP_COMPLETE);
 }
 
-void DoPageSwapTransaction(struct PageSwapTransaction * pTran, struct WearLeveler * wl, physical_page_t oldPage,
-                           physical_page_t newPage, struct PageInfo * oldPageInfo, struct PageInfo * newPageInfo,
-                           logical_page_t basePageSeq)
+void DoPageSwapTransaction(struct PageSwapTransaction * pTran, struct PageMapInfo * oldPageInfo,
+                           struct PageMapInfo * newPageInfo, struct MapInfoManager * manager,
+                           struct SwapTable * pSwapTable, nvm_addr_t dataStartOffset)
 {
-    if (!newPageInfo->busy)
+    if (!newPageInfo->pageInfo.busy)
     {
-        DoPageQuickSwapTransaction(pTran, wl, oldPage, newPage, oldPageInfo, newPageInfo, basePageSeq);
+        DoPageQuickSwapTransaction(pTran, oldPageInfo, newPageInfo, dataStartOffset, manager);
     }
     else
     {
-        nvm_addr_t swapPageAddr;
-
-        swapPageAddr = GetSwapPage(&wl->swapTable);
-        DoPageCompleteSwapTransaction(pTran, wl, oldPage, newPage, oldPageInfo, newPageInfo, swapPageAddr, basePageSeq);
+        DoPageCompleteSwapTransaction(pTran, oldPageInfo, newPageInfo, dataStartOffset, manager,
+                                      GetSwapPage(pSwapTable));
     }
 }

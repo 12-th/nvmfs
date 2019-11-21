@@ -5,7 +5,10 @@
 #include "Config.h"
 #include "Types.h"
 
-struct WearLeveler;
+struct SwapTable;
+struct BlockMapInfo;
+struct PageMapInfo;
+struct MapInfoManager;
 
 #define BLOCK_SWAP_STEP1 1
 #define BLOCK_SWAP_STEP2 2
@@ -58,19 +61,22 @@ struct BlockSwapTransaction
 
 void BlockSwapTransactionLogAreaFormat(struct BlockSwapTransactionLogArea * pArea, nvm_addr_t addr, int startIndex);
 void BlockSwapTransactionLogAreaInit(struct BlockSwapTransactionLogArea * pArea, nvm_addr_t addr, int startIndex);
-void BlockSwapTransactionLogAreaRecovery(struct BlockSwapTransactionLogArea * pArea, nvm_addr_t addr,
-                                         struct WearLeveler * wl);
+// void BlockSwapTransactionLogAreaRecovery(struct BlockSwapTransactionLogArea * pArea, nvm_addr_t addr,
+//                                          struct WearLeveler * wl);
 void BlockSwapTransactionLogAreaUninit(struct BlockSwapTransactionLogArea * pArea);
 void BlockSwapTransactionInit(struct BlockSwapTransaction * pTran, struct BlockSwapTransactionLogArea * pArea);
 void BlockSwapTransactionUninit(struct BlockSwapTransaction * pTran);
-void DoBlockCompleteSwapTransaction(struct BlockSwapTransaction * pTran, struct WearLeveler * wl,
-                                    physical_block_t oldBlock, physical_block_t newBlock, nvm_addr_t swapBlockAddr,
-                                    struct BlockInfo * oldBlockInfo, struct BlockInfo * newBlockInfo);
-void DoBlockQuickSwapTransaction(struct BlockSwapTransaction * pTran, struct WearLeveler * wl,
-                                 physical_block_t oldBlock, physical_block_t newBlock, struct BlockInfo * oldBlockInfo,
-                                 struct BlockInfo * newBlockInfo);
-void DoBlockSwapTransaction(struct BlockSwapTransaction * pTran, struct WearLeveler * wl, physical_block_t oldBlock,
-                            physical_block_t newBlock, struct BlockInfo * oldBlockInfo,
-                            struct BlockInfo * newBlockInfo);
+
+void DoBlockCompleteSwapTransaction(struct BlockSwapTransaction * pTran, struct MapInfoManager * manager,
+                                    struct BlockMapInfo * oldBlockInfo, struct BlockMapInfo * newBlockInfo,
+                                    nvm_addr_t swapBlockAddr, nvm_addr_t dataStartOffset);
+void DoBlockQuickSwapTransaction(struct BlockSwapTransaction * pTran, struct MapInfoManager * manager,
+                                 struct BlockMapInfo * oldBlockInfo, struct BlockMapInfo * newBlockInfo,
+                                 nvm_addr_t dataStartOffset);
+void DoBlockSwapTransaction(struct BlockSwapTransaction * pTran, struct MapInfoManager * manager,
+                            struct BlockMapInfo * oldBlockInfo, struct BlockMapInfo * newBlockInfo,
+                            struct SwapTable * pSwapTable, nvm_addr_t dataStartOffset);
+// void BlockSwapTransactionLogAreaRecovery(struct BlockSwapTransactionLogArea * pArea, nvm_addr_t addr,
+//                                          struct WearLeveler * wl);
 
 #endif

@@ -4,7 +4,7 @@
 #include "PageUnmapTable.h"
 #include "Types.h"
 
-struct WearLeveler;
+struct SwapTable;
 
 #define PAGE_SWAP_STEP1 1
 #define PAGE_SWAP_STEP2 2
@@ -52,14 +52,14 @@ void PageSwapTransactionLogAreaRecovery(struct PageSwapTransactionLogArea * pAre
 void PageSwapTransactionLogAreaUninit(struct PageSwapTransactionLogArea * pArea);
 void PageSwapTransactionInit(struct PageSwapTransaction * pTran, struct PageSwapTransactionLogArea * pArea);
 void PageSwapTransactionUninit(struct PageSwapTransaction * pTran);
-void DoPageQuickSwapTransaction(struct PageSwapTransaction * pTran, struct WearLeveler * wl, physical_page_t oldPage,
-                                physical_page_t newPage, struct PageInfo * oldPageInfo, struct PageInfo * newPageInfo,
-                                logical_page_t basePageSeq);
-void DoPageCompleteSwapTransaction(struct PageSwapTransaction * pTran, struct WearLeveler * wl, physical_page_t oldPage,
-                                   physical_page_t newPage, struct PageInfo * oldPageInfo,
-                                   struct PageInfo * newPageInfo, nvm_addr_t swapPageAddr, logical_page_t basePageSeq);
-void DoPageSwapTransaction(struct PageSwapTransaction * pTran, struct WearLeveler * wl, physical_page_t oldPage,
-                           physical_page_t newPage, struct PageInfo * oldPageInfo, struct PageInfo * newPageInfo,
-                           logical_page_t basePageSeq);
 
+void DoPageQuickSwapTransaction(struct PageSwapTransaction * pTran, struct PageMapInfo * oldPageInfo,
+                                struct PageMapInfo * newPageInfo, nvm_addr_t dataStartOffset,
+                                struct MapInfoManager * manager);
+void DoPageCompleteSwapTransaction(struct PageSwapTransaction * pTran, struct PageMapInfo * oldPageInfo,
+                                   struct PageMapInfo * newPageInfo, nvm_addr_t dataStartOffset,
+                                   struct MapInfoManager * manager, nvm_addr_t swapPageAddr);
+void DoPageSwapTransaction(struct PageSwapTransaction * pTran, struct PageMapInfo * oldPageInfo,
+                           struct PageMapInfo * newPageInfo, struct MapInfoManager * manager,
+                           struct SwapTable * pSwapTable, nvm_addr_t dataStartOffset);
 #endif

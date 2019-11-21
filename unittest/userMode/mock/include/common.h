@@ -5,7 +5,7 @@
 #define ASSERT(expr, ...) assert(expr)
 #define STATIC_ASSERT(expr, msg) typedef char static_assertion_##fmt[(expr) ? 1 : -1]
 
-#define NOT_REACH_HERE() ASSERT(FALSE, "program should not reach here\n")
+#define NOT_REACH_HERE() ASSERT(0, "program should not reach here\n")
 
 #ifndef NULL
 #define NULL ((void *)0)
@@ -51,5 +51,7 @@
 #endif
 
 #define ALWAYS_INLINE __attribute__((always_inline))
+
+#define WARN(expr, msg) ASSERT(!(expr), msg)
 
 #endif

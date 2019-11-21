@@ -112,9 +112,18 @@ void PageUnmapTableUninit(struct PageUnmapTable * pTable)
 {
 }
 
+static inline logical_page_t RelativeIndexToPage(logical_block_t block, UINT64 index)
+{
+    return (block << (BITS_2M - BITS_4K)) + index;
+}
+
+static inline UINT64 RelativeIndexOfPage(logical_page_t page)
+{
+    return page & ((1UL << (BITS_2M - BITS_4K)) - 1);
+}
+
 void PageUnmapTableGet(struct PageUnmapTable * pTable, physical_page_t pageSeq, struct PageInfo * info)
 {
-    logical_page_t logicPage;
     physical_block_t physBlock;
     logical_block_t logicBlock;
     struct BlockInfo blockInfo;
@@ -134,9 +143,8 @@ void PageUnmapTableGet(struct PageUnmapTable * pTable, physical_page_t pageSeq, 
     addr = pTable->addr + offset;
 
     NVMRead(addr, sizeof(struct NVMPageUnmapTableEntry), &entry);
-    logicPage = (logicBlock << (BITS_2M - BITS_4K)) + GetUnmapPageRelativeIndexFromEntry(&entry, offsetInsideEntry);
 
-    info->unmapPage = logicPage;
+    info->unmapPage = RelativeIndexToPage(logicBlock, GetUnmapPageRelativeIndexFromEntry(&entry, offsetInsideEntry));
     info->busy = GetUnmapPageBusyFlagFromEntry(&entry, offsetInsideEntry);
 }
 
@@ -161,19 +169,18 @@ void PageUnmapTableSet(struct PageUnmapTable * pTable, physical_page_t pageSeq, 
     addr = pTable->addr + offset;
 
     NVMRead(addr, sizeof(struct NVMPageUnmapTableEntry), &entry);
-    SetUnmapPageRelativeIndexOfEntry(&entry, offsetInsideEntry, info->unmapPage);
+    SetUnmapPageRelativeIndexOfEntry(&entry, offsetInsideEntry, RelativeIndexOfPage(info->unmapPage));
     SetUnmapPageBusyFlagOfEntry(&entry, offsetInsideEntry, info->busy);
     NVMWrite(addr, sizeof(struct NVMPageUnmapTableEntry), &entry);
 }
 
-void PageUnmapTableBatchGet(struct PageUnmapTable * pTable, physical_block_t block, UINT64 * relativeIndice)
+void PageUnmapTableBatchGet(struct PageUnmapTable * pTable, physical_block_t block, struct PageInfo * infos)
 {
     logical_block_t logicBlock;
     struct BlockInfo info;
     nvm_addr_t addr;
     struct NVMPageUnmapTableEntry entry;
     int i, j;
-    UINT64 relativeIndex;
 
     BlockUnmapTableGet(pTable->pBlockUnmapTable, block, &info);
     logicBlock = info.unmapBlock;
@@ -182,8 +189,8 @@ void PageUnmapTableBatchGet(struct PageUnmapTable * pTable, physical_block_t blo
     {
         if (j == 0)
             NVMRead(addr, sizeof(struct NVMPageUnmapTableEntry), &entry);
-        relativeIndex = GetUnmapPageRelativeIndexFromEntry(&entry, j);
-        relativeIndice[i] = relativeIndex;
+        infos[i].unmapPage = RelativeIndexToPage(logicBlock, GetUnmapPageRelativeIndexFromEntry(&entry, j));
+        infos[i].busy = GetUnmapPageBusyFlagFromEntry(&entry, j);
         addr += sizeof(struct NVMPageUnmapTableEntry);
         ++j;
         if (j >= 6)

@@ -7,7 +7,8 @@
 #include "BlockUnmapTable.h"
 #include "BlockWearTable.h"
 #include "Layouter.h"
-#include "MapTable.h"
+#include "MapInfoManager.h"
+#include "NVMAccessController.h"
 #include "PageSwapTransactionLogArea.h"
 #include "PageUnmapTable.h"
 #include "PageWearTable.h"
@@ -19,29 +20,24 @@ struct WearLeveler
     UINT64 nvmBaseAddr;
     struct SuperBlock sb;
     struct Layouter layouter;
-    struct MapTable mapTable;
-    struct BlockUnmapTable blockUnmapTable;
     struct BlockWearTable blockWearTable;
-    struct PageUnmapTable pageUnmapTable;
     struct PageWearTable pageWearTable;
     struct AvailBlockTable availBlockTable;
     struct AvailPageTable availPageTable;
     struct SwapTable swapTable;
     struct BlockSwapTransactionLogArea blockSwapTransactionLogArea;
     struct PageSwapTransactionLogArea pageSwapTransactionLogArea;
+    struct MapInfoManager mapInfoManager;
 };
 
 void WearLevelerInit(struct WearLeveler * wl);
 void WearLevelerFormat(struct WearLeveler * wl, UINT64 nvmSizeBits, UINT64 nvmBaseAddr);
 void WearLevelerUninit(struct WearLeveler * wl);
-nvm_addr_t LogicAddressTranslate(struct WearLeveler * wl, logic_addr_t addr);
-void NVMBlockWearCountIncrease(struct WearLeveler * wl, logic_addr_t addr, UINT32 delta);
-void NVMPageWearCountIncrease(struct WearLeveler * wl, logic_addr_t addr, UINT32 delta);
-void NVMBlockSplit(struct WearLeveler * wl, logic_addr_t logicAddr, nvm_addr_t addr);
-void NVMPagesMerge(struct WearLeveler * wl, nvm_addr_t addr);
-void NVMBlockInUse(struct WearLeveler * wl, nvm_addr_t addr);
-void NVMPageInUse(struct WearLeveler * wl, nvm_addr_t addr);
-void NVMBlockTrim(struct WearLeveler * wl, nvm_addr_t addr);
-void NVMPageTrim(struct WearLeveler * wl, nvm_addr_t addr);
+void NVMBlockSplit(struct WearLeveler * wl, logic_addr_t addr);
+void NVMPagesMerge(struct WearLeveler * wl, logic_addr_t addr);
+int WearLevelerRead(struct WearLeveler * wl, logic_addr_t addr, void * buffer, UINT32 size);
+UINT32 WearLevelerWrite(struct WearLeveler * wl, logic_addr_t addr, void * buffer, UINT32 size,
+                        UINT32 increasedWearCount);
+void WearLevelerTrim(struct WearLeveler * wl, logic_addr_t addr);
 
 #endif

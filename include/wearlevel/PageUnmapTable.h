@@ -39,7 +39,7 @@ struct PageUnmapTable
 
 struct PageInfo
 {
-    UINT64 unmapPage : 9;
+    logical_page_t unmapPage : 63;
     UINT64 busy : 1;
 };
 
@@ -50,7 +50,7 @@ void PageUnmapTableInit(struct PageUnmapTable * pTable, struct BlockUnmapTable *
 void PageUnmapTableUninit(struct PageUnmapTable * pTable);
 void PageUnmapTableGet(struct PageUnmapTable * pTable, physical_page_t pageSeq, struct PageInfo * info);
 void PageUnmapTableSet(struct PageUnmapTable * pTable, physical_page_t pageSeq, struct PageInfo * info);
-void PageUnmapTableBatchGet(struct PageUnmapTable * pTable, physical_block_t block, UINT64 * relativeIndice);
+void PageUnmapTableBatchGet(struct PageUnmapTable * pTable, physical_block_t block, struct PageInfo * infos);
 void PageUnmapTableBatchFormat(struct PageUnmapTable * pTable, physical_block_t block, UINT8 busy);
 
 #endif
