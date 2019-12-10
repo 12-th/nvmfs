@@ -58,6 +58,9 @@ void MapInfoManagerSwapPage(struct MapInfoManager * manager, struct PageMapInfo 
 
 UINT32 MapInfoManagerRead(struct MapInfoManager * manager, logic_addr_t addr, void * buffer, UINT32 size);
 UINT32 MapInfoManagerWrite(struct MapInfoManager * manager, logic_addr_t addr, void * buffer, UINT32 size);
+UINT32 MapInfoManagerMemset(struct MapInfoManager * manager, logic_addr_t addr, int value, UINT32 size);
+UINT32 MapInfoManagerMemcpy(struct MapInfoManager * manager, logic_addr_t srcAddr, logic_addr_t dstAddr, UINT32 size,
+                            int * isDstFullWrite);
 void MapInfoManagerTrim(struct MapInfoManager * manager, logic_addr_t addr);
 void MapInfoManagerSplit(struct MapInfoManager * manager, logic_addr_t addr, struct BlockWearTable * blockWearTable,
                          struct PageWearTable * pageWearTable);
@@ -65,5 +68,13 @@ void MapInfoManagerMerge(struct MapInfoManager * manager, logic_addr_t addr, str
                          struct PageWearTable * pageWearTable);
 
 int MapInfoManagerIsBlockSplited(struct MapInfoManager * manager, logic_addr_t addr);
+
+void MapInfoManagerRecoveryBegin(struct MapInfoManager * manager, struct Layouter * layouter);
+void MapInfoManagerRecoverySwapBlock(struct MapInfoManager * manager, physical_block_t block1,
+                                     struct BlockInfo * block1Info, physical_block_t block2,
+                                     struct BlockInfo * block2Info);
+void MapInfoManagerRecoverySwapPage(struct MapInfoManager * manager, physical_page_t page1, struct PageInfo * page1Info,
+                                    physical_page_t page2, struct PageInfo * page2Info);
+void MapInfoManagerRecoveryEnd(struct MapInfoManager * manager);
 
 #endif

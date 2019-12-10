@@ -18,7 +18,6 @@ TEST(PagePoolTest, AllocFreeTest1)
     WearLevelerFormat(&wl, 30, 0);
     NVMAccesserInit(&acc, &wl);
 
-    PagePoolGlobalInit();
     BlockPoolInit(&bpool);
     PagePoolInit(&ppool, &bpool, acc);
     ExtentContainerInit(&container, GFP_KERNEL);
@@ -26,14 +25,13 @@ TEST(PagePoolTest, AllocFreeTest1)
     BlockPoolExtentPut(&bpool, &container);
     ExtentContainerUninit(&container);
 
-    page = PagePoolAlloc(&ppool);
+    page = logical_addr_to_page(PagePoolAlloc(&ppool));
     EXPECT_EQ(page, 0);
-    PagePoolFree(&ppool, page);
+    PagePoolFree(&ppool, logical_addr_to_page(page));
     EXPECT_EQ(ppool.subPoolNum, 1);
 
     PagePoolUninit(&ppool);
     BlockPoolUninit(&bpool);
-    PagePoolGlobalUninit();
 
     WearLevelerUninit(&wl);
     NVMUninit();
@@ -55,7 +53,6 @@ TEST(PagePoolTest, AllocFreeTest2)
     NVMAccesserInit(&acc, &wl);
 
     pages = kmalloc(sizeof(logical_page_t) * 512, GFP_KERNEL);
-    PagePoolGlobalInit();
     BlockPoolInit(&bpool);
     PagePoolInit(&ppool, &bpool, acc);
     ExtentContainerInit(&container, GFP_KERNEL);
@@ -65,7 +62,7 @@ TEST(PagePoolTest, AllocFreeTest2)
 
     for (i = 0; i < 512; ++i)
     {
-        pages[i] = PagePoolAlloc(&ppool);
+        pages[i] = logical_addr_to_page(PagePoolAlloc(&ppool));
     }
 
     for (i = 0; i < 511; i++)
@@ -75,12 +72,11 @@ TEST(PagePoolTest, AllocFreeTest2)
 
     for (i = 0; i < 512; ++i)
     {
-        PagePoolFree(&ppool, pages[i]);
+        PagePoolFree(&ppool, logical_addr_to_page(pages[i]));
     }
 
     PagePoolUninit(&ppool);
     BlockPoolUninit(&bpool);
-    PagePoolGlobalUninit();
     kfree(pages);
 
     WearLevelerUninit(&wl);
@@ -103,7 +99,6 @@ TEST(PagePoolTest, AllocFreeTest3)
     NVMAccesserInit(&acc, &wl);
 
     pages = kmalloc(sizeof(logical_page_t) * 513, GFP_KERNEL);
-    PagePoolGlobalInit();
     BlockPoolInit(&bpool);
     PagePoolInit(&ppool, &bpool, acc);
     ExtentContainerInit(&container, GFP_KERNEL);
@@ -113,7 +108,7 @@ TEST(PagePoolTest, AllocFreeTest3)
 
     for (i = 0; i < 513; ++i)
     {
-        pages[i] = PagePoolAlloc(&ppool);
+        pages[i] = logical_addr_to_page(PagePoolAlloc(&ppool));
     }
 
     for (i = 0; i < 511; i++)
@@ -125,16 +120,68 @@ TEST(PagePoolTest, AllocFreeTest3)
 
     for (i = 0; i < 513; ++i)
     {
-        PagePoolFree(&ppool, pages[i]);
+        PagePoolFree(&ppool, logical_addr_to_page(pages[i]));
     }
 
     EXPECT_EQ(ppool.subPoolNum, 2);
 
     PagePoolUninit(&ppool);
     BlockPoolUninit(&bpool);
-    PagePoolGlobalUninit();
     kfree(pages);
 
+    WearLevelerUninit(&wl);
+    NVMUninit();
+}
+
+TEST(PagePoolTest, AllocWithHintTest)
+{
+    struct BlockPool bpool;
+    struct PagePool ppool;
+    logic_addr_t *pages1, *pages2;
+    struct ExtentContainer container;
+    UINT64 i;
+
+    struct WearLeveler wl;
+    struct NVMAccesser acc;
+
+    NVMInit(1UL << 30);
+    WearLevelerFormat(&wl, 30, 0);
+    NVMAccesserInit(&acc, &wl);
+    BlockPoolInit(&bpool);
+    PagePoolInit(&ppool, &bpool, acc);
+    ExtentContainerInit(&container, GFP_KERNEL);
+    ExtentContainerAppend(&container, 0, 100, GFP_KERNEL);
+    BlockPoolExtentPut(&bpool, &container);
+    ExtentContainerUninit(&container);
+
+    pages1 = kmalloc(sizeof(logical_page_t) * 512, GFP_KERNEL);
+    pages2 = kmalloc(sizeof(logical_page_t) * 512, GFP_KERNEL);
+
+    for (i = 0; i < 512; ++i)
+    {
+        pages1[i] = PagePoolAlloc(&ppool);
+    }
+    pages2[0] = PagePoolAlloc(&ppool);
+
+    for (i = 0; i < 512; ++i)
+    {
+        PagePoolFree(&ppool, pages1[i]);
+    }
+
+    for (i = 1; i < 512; ++i)
+    {
+        pages2[i] = PagePoolAllocWithHint(&ppool, pages2[i - 1]);
+    }
+
+    for (i = 0; i < 511; ++i)
+    {
+        EXPECT_EQ(logical_addr_to_block(pages2[i]), logical_addr_to_block(pages2[i + 1]));
+    }
+
+    PagePoolUninit(&ppool);
+    BlockPoolUninit(&bpool);
+    kfree(pages1);
+    kfree(pages2);
     WearLevelerUninit(&wl);
     NVMUninit();
 }

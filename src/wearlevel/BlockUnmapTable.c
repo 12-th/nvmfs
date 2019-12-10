@@ -32,3 +32,17 @@ void BlockUnmapTableSet(struct BlockUnmapTable * pTable, physical_block_t block,
 void BlockUnmapTableUninit(struct BlockUnmapTable * pTable)
 {
 }
+
+void BlockUnmapTableRecoveryBegin(struct BlockUnmapTable * pTable, nvm_addr_t addr, UINT64 blockNum)
+{
+    pTable->addr = addr;
+}
+
+void BlockUnmapTableRecoverySet(struct BlockUnmapTable * pTable, physical_block_t block, struct BlockInfo * info)
+{
+    NVMWrite(pTable->addr + offsetof(struct NVMBlockUnmapTable, infos[block]), sizeof(struct BlockInfo), info);
+}
+
+void BlockUnmapTableRecoveryEnd(struct BlockUnmapTable * pTable)
+{
+}

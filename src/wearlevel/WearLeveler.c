@@ -114,27 +114,6 @@ static void NVMPageWearCountIncrease(struct WearLeveler * wl, logic_addr_t addr,
     PageWearCountSet(&wl->pageWearTable, newPageInfo.physPage, newPageOldWearCount + 1);
 }
 
-void WearLevelerInit(struct WearLeveler * wl)
-{
-    UINT64 blockNum, pageNum;
-
-    LayouterInit(&wl->layouter, NvmBitsQuery(&wl->sb));
-    blockNum = BlockNumQuery(&wl->layouter);
-    pageNum = PageNumQuery(&wl->layouter);
-
-    BlockWearTableInit(&wl->blockWearTable, BlockWearTableAddrQuery(&wl->layouter), blockNum);
-    PageWearTableInit(&wl->pageWearTable, PageUnmapTableAddrQuery(&wl->layouter), pageNum);
-    MapInfoManagerInit(&wl->mapInfoManager, &wl->layouter);
-
-    AvailBlockTableRebuild(&wl->availBlockTable, &wl->blockWearTable, blockNum);
-    AvailPageTableInit(&wl->availPageTable, pageNum);
-    SwapTableInit(&wl->swapTable, SwapTableMetadataAddrQuery(&wl->layouter));
-    BlockSwapTransactionLogAreaInit(&wl->blockSwapTransactionLogArea,
-                                    BlockSwapTransactionLogAreaAddrQuery(&wl->layouter), 0);
-    PageSwapTransactionLogAreaInit(&wl->pageSwapTransactionLogArea, PageSwapTransactionLogAreaAddrQuery(&wl->layouter),
-                                   0);
-}
-
 void WearLevelerFormat(struct WearLeveler * wl, UINT64 nvmSizeBits, UINT64 nvmBaseAddr)
 {
     UINT64 blockNum, pageNum;
@@ -172,6 +151,39 @@ void WearLevelerUninit(struct WearLeveler * wl)
 
 static void WearLevelerRecovery(struct WearLeveler * wl)
 {
+    nvm_addr_t dataStartOffset;
+
+    LayouterInit(&wl->layouter, NvmBitsQuery(&wl->sb));
+    dataStartOffset = DataStartAddrQuery(&wl->layouter);
+    MapInfoManagerRecoveryBegin(&wl->mapInfoManager, &wl->layouter);
+    BlockSwapTransactionLogAreaRecovery(&wl->blockSwapTransactionLogArea, &wl->mapInfoManager,
+                                        BlockSwapTransactionLogAreaAddrQuery(&wl->layouter), dataStartOffset);
+    PageSwapTransactionLogAreaRecovery(&wl->pageSwapTransactionLogArea, &wl->mapInfoManager,
+                                       PageSwapTransactionLogAreaAddrQuery(&wl->layouter), dataStartOffset);
+    MapInfoManagerRecoveryEnd(&wl->mapInfoManager);
+}
+
+void WearLevelerInit(struct WearLeveler * wl)
+{
+    UINT64 blockNum, pageNum;
+
+    WearLevelerRecovery(wl);
+
+    LayouterInit(&wl->layouter, NvmBitsQuery(&wl->sb));
+    blockNum = BlockNumQuery(&wl->layouter);
+    pageNum = PageNumQuery(&wl->layouter);
+
+    BlockWearTableInit(&wl->blockWearTable, BlockWearTableAddrQuery(&wl->layouter), blockNum);
+    PageWearTableInit(&wl->pageWearTable, PageUnmapTableAddrQuery(&wl->layouter), pageNum);
+    MapInfoManagerInit(&wl->mapInfoManager, &wl->layouter);
+
+    AvailBlockTableRebuild(&wl->availBlockTable, &wl->blockWearTable, blockNum);
+    AvailPageTableInit(&wl->availPageTable, pageNum);
+    SwapTableInit(&wl->swapTable, SwapTableMetadataAddrQuery(&wl->layouter));
+    BlockSwapTransactionLogAreaInit(&wl->blockSwapTransactionLogArea,
+                                    BlockSwapTransactionLogAreaAddrQuery(&wl->layouter), 0);
+    PageSwapTransactionLogAreaInit(&wl->pageSwapTransactionLogArea, PageSwapTransactionLogAreaAddrQuery(&wl->layouter),
+                                   0);
 }
 
 void WearLevelerLaunch(struct WearLeveler * wl, UINT64 nvmBaseAddr)
@@ -220,6 +232,46 @@ UINT32 WearLevelerWrite(struct WearLeveler * wl, logic_addr_t addr, void * buffe
         else
         {
             NVMPageWearCountIncrease(wl, addr, increasedWearCount);
+        }
+    }
+    return writeSize;
+}
+
+UINT32 WearLevelerMemset(struct WearLeveler * wl, logic_addr_t addr, UINT32 size, int value, UINT32 increasedWearCount)
+{
+    int writeSize;
+
+    writeSize = MapInfoManagerMemset(&wl->mapInfoManager, addr, value, size);
+    if (increasedWearCount)
+    {
+        if (!MapInfoManagerIsBlockSplited(&wl->mapInfoManager, addr))
+        {
+            NVMBlockWearCountIncrease(wl, addr, increasedWearCount);
+        }
+        else
+        {
+            NVMPageWearCountIncrease(wl, addr, increasedWearCount);
+        }
+    }
+    return writeSize;
+}
+
+UINT32 WearLevelerMemcpy(struct WearLeveler * wl, logic_addr_t srcAddr, logic_addr_t dstAddr, UINT32 size,
+                         UINT32 increasedWearCount)
+{
+    int writeSize = 0;
+    int isDstFullWrite;
+
+    writeSize = MapInfoManagerMemcpy(&wl->mapInfoManager, srcAddr, dstAddr, size, &isDstFullWrite);
+    if (increasedWearCount && isDstFullWrite)
+    {
+        if (!MapInfoManagerIsBlockSplited(&wl->mapInfoManager, dstAddr))
+        {
+            NVMBlockWearCountIncrease(wl, dstAddr, increasedWearCount);
+        }
+        else
+        {
+            NVMPageWearCountIncrease(wl, dstAddr, increasedWearCount);
         }
     }
     return writeSize;

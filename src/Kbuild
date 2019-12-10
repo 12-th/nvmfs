@@ -1,10 +1,23 @@
+SOURCE_PATH = $(abspath $(PWD)/..)
+
+
 #EXTRA_CFLAGS = -Wall -g //deprecated
-ccflags-y := -Wall -g -DDEBUG -DKERNEL_MODE  #$(CC)
+ccflags-y := -Wall -g -DDEBUG -DKERNEL_MODE  -I$(SOURCE_PATH)/include/fs
 #asflags-y :=   #$(AS)
 #ldflags-y :=   #$(LD)
+HOST_EXTRACFLAGS += 
+
+
+WHITE_LIST := DirInode.c \
+              FileInode.c \
+              inode.c  \
+              LinkInode.c \
+              nvmfs.c \
+              superblock.c
+OBJS := $(patsubst %.c, %.o, $(addprefix fs/, $(WHITE_LIST)))
 
 #wildcard抓取所有.c文件，notdir删掉这些.c文件的路径名
-OBJS := $(patsubst %.c, %.o,$(notdir $(wildcard $(PWD)/*.c)))
+#OBJS := $(patsubst %.c, %.o,$(wildcard $(PWD)/*.c))
 
-obj-m = nvmblock.o
-nvmblock-y = $(OBJS)
+obj-m = nvmfs.o
+nvmfs-y = $(OBJS)

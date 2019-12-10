@@ -1,12 +1,6 @@
 #include "ExtentTree.h"
 #include <linux/slab.h>
 
-struct ExtentNode
-{
-    struct Extent extent;
-    struct rb_node node;
-};
-
 void ExtentTreeInit(struct ExtentTree * tree)
 {
     tree->root = RB_ROOT;
@@ -191,6 +185,34 @@ void ExtentTreeBatchPut(struct ExtentTree * tree, struct ExtentContainer * conta
     {
         ExtentTreePut(tree, container->array[i].start, container->array[i].end, flags);
     }
+}
+
+void ExtentTreeReverseHolesAndExtents(struct ExtentTree * tree, UINT64 maxSize)
+{
+    struct rb_node *cur, *next;
+    struct ExtentNode * extent;
+    UINT64 lastHole = 0;
+    struct ExtentTree newTree;
+
+    ExtentTreeInit(&newTree);
+    cur = rb_first(&tree->root);
+    while (cur)
+    {
+        extent = container_of(cur, struct ExtentNode, node);
+        if (lastHole < extent->extent.start)
+        {
+            ExtentTreePut(&newTree, lastHole, extent->extent.start, GFP_KERNEL);
+        }
+        lastHole = extent->extent.end;
+        next = rb_next(cur);
+        rb_erase(cur, &tree->root);
+        kfree(extent);
+        cur = next;
+    }
+    if (lastHole != maxSize)
+        ExtentTreePut(&newTree, lastHole, maxSize, GFP_KERNEL);
+    ExtentTreeUninit(tree);
+    *tree = newTree;
 }
 
 void ExtentContainerInit(struct ExtentContainer * container, gfp_t flags)

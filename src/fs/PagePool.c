@@ -2,10 +2,7 @@
 #include "BlockPool.h"
 #include "NVMAccesser.h"
 #include "PagePool.h"
-#include "RadixTree.h"
 #include <linux/slab.h>
-
-static struct RadixTree tree;
 
 static struct PageSubPool * CreatePageSubPool(logical_block_t block, int empty)
 {
@@ -15,13 +12,14 @@ static struct PageSubPool * CreatePageSubPool(logical_block_t block, int empty)
     if (empty)
     {
         memset(sp->bitmap, 0, sizeof(sp->bitmap));
+        sp->count = 512;
     }
     else
     {
         memset(sp->bitmap, -1, sizeof(sp->bitmap));
+        sp->count = 0;
     }
     sp->nextIndex = 0;
-    sp->count = 512;
     INIT_LIST_HEAD(&sp->list);
     sp->block = block;
     return sp;
@@ -32,18 +30,9 @@ static void DestroyPageSubPool(void * subPool)
     kfree(subPool);
 }
 
-void PagePoolGlobalInit(void)
-{
-    RadixTreeInit(&tree);
-}
-
-void PagePoolGlobalUninit(void)
-{
-    RadixTreeUninit(&tree, DestroyPageSubPool);
-}
-
 void PagePoolInit(struct PagePool * pool, struct BlockPool * blockPool, struct NVMAccesser acc)
 {
+    RadixTreeInit(&pool->tree);
     pool->subPoolNum = 0;
     pool->blockPool = blockPool;
     spin_lock_init(&pool->lock);
@@ -57,10 +46,11 @@ void PagePoolUninit(struct PagePool * pool)
     list_for_each_entry_safe(sp, next, &pool->nonFull, list)
     {
         list_del(&sp->list);
-        RadixTreeSet(&tree, sp->block, NULL);
+        RadixTreeSet(&pool->tree, sp->block, NULL);
         DestroyPageSubPool(sp);
     }
     spin_lock_uninit(&pool->lock);
+    RadixTreeUninit(&pool->tree, DestroyPageSubPool);
 }
 
 static inline unsigned long ffz(unsigned long word)
@@ -114,7 +104,7 @@ static inline void AddPageSubPool(struct PagePool * pool, struct PageSubPool * s
 {
     list_add(&pool->nonFull, &sp->list);
     pool->subPoolNum++;
-    RadixTreeSet(&tree, sp->block, sp);
+    RadixTreeSet(&pool->tree, sp->block, sp);
 }
 
 static struct PageSubPool * PageSubPoolPrepare(struct PagePool * pool)
@@ -127,7 +117,7 @@ static struct PageSubPool * PageSubPoolPrepare(struct PagePool * pool)
     NVMAccesserSplit(&pool->acc, logical_block_to_addr(block));
     NVMAccesserTrim(&pool->acc, logical_block_to_addr(block));
     sp = CreatePageSubPool(block, 1);
-    RadixTreeSetPrepare(&tree, block);
+    RadixTreeSetPrepare(&pool->tree, block);
     return sp;
 }
 
@@ -139,7 +129,7 @@ static void PageSubPoolDeprecate(struct PagePool * pool, struct PageSubPool * sp
     DestroyPageSubPool(sp);
     if (removeFromTree)
     {
-        RadixTreeSet(&tree, sp->block, NULL);
+        RadixTreeSet(&pool->tree, sp->block, NULL);
     }
 }
 
@@ -147,7 +137,7 @@ static struct PageSubPool * PageSubPoolAllocated(struct PagePool * pool, struct 
 {
     if (sp->count == 0)
     {
-        RadixTreeSet(&tree, sp->block, NULL);
+        RadixTreeSet(&pool->tree, sp->block, NULL);
         list_del(&sp->list);
         pool->subPoolNum--;
         return sp;
@@ -155,7 +145,7 @@ static struct PageSubPool * PageSubPoolAllocated(struct PagePool * pool, struct 
     return NULL;
 }
 
-logical_page_t PagePoolAlloc(struct PagePool * pool)
+logic_addr_t PagePoolAlloc(struct PagePool * pool)
 {
     logical_page_t page = invalid_page;
     struct PageSubPool *sp, *newSp, *fullSp;
@@ -185,7 +175,52 @@ out:
         PageSubPoolDeprecate(pool, newSp, 0);
     if (fullSp)
         DestroyPageSubPool(fullSp);
-    return page;
+    if (page == invalid_page)
+        return invalid_nvm_addr;
+    return logical_page_to_addr(page);
+}
+
+logic_addr_t PagePoolAllocWithHint(struct PagePool * pool, logic_addr_t hint)
+{
+    logical_page_t page = invalid_page;
+    struct PageSubPool *sp, *newSp, *fullSp;
+
+    sp = newSp = fullSp = NULL;
+
+    spin_lock(&pool->lock);
+    if (hint != invalid_nvm_addr)
+    {
+        sp = RadixTreeGet(&pool->tree, logical_addr_to_block(hint));
+    }
+    if (!sp)
+    {
+        if (list_empty(&pool->nonFull))
+        {
+            spin_unlock(&pool->lock);
+            if (!(newSp = PageSubPoolPrepare(pool)))
+                goto out;
+            spin_lock(&pool->lock);
+            if (list_empty(&pool->nonFull))
+            {
+                AddPageSubPool(pool, newSp);
+                newSp = NULL;
+            }
+        }
+        sp = list_entry(pool->nonFull.next, struct PageSubPool, list);
+    }
+
+    page = AllocPageFromPageSubPool(sp);
+    fullSp = PageSubPoolAllocated(pool, sp);
+    spin_unlock(&pool->lock);
+out:
+    if (newSp)
+        PageSubPoolDeprecate(pool, newSp, 0);
+    if (fullSp)
+        DestroyPageSubPool(fullSp);
+
+    if (page == invalid_page)
+        return invalid_nvm_addr;
+    return logical_page_to_addr(page);
 }
 
 static inline int BitmapIndexOfPage(logical_page_t page)
@@ -193,16 +228,17 @@ static inline int BitmapIndexOfPage(logical_page_t page)
     return page & 511;
 }
 
-void PagePoolFree(struct PagePool * pool, logical_page_t page)
+void PagePoolFree(struct PagePool * pool, logic_addr_t addr)
 {
     struct PageSubPool *sp, *newSp, *emptySp;
     logical_block_t block;
     int index;
+    logical_page_t page = logical_addr_to_page(addr);
 
     sp = newSp = emptySp = NULL;
     block = logical_page_to_block(page);
     spin_lock(&pool->lock);
-    sp = RadixTreeGet(&tree, block);
+    sp = RadixTreeGet(&pool->tree, block);
     if (sp == NULL)
     {
         spin_unlock(&pool->lock);
@@ -210,10 +246,10 @@ void PagePoolFree(struct PagePool * pool, logical_page_t page)
         newSp = CreatePageSubPool(block, 0);
 
         spin_lock(&pool->lock);
-        sp = RadixTreeGet(&tree, block);
+        sp = RadixTreeGet(&pool->tree, block);
         if (!sp)
         {
-            RadixTreeSet(&tree, block, newSp);
+            RadixTreeSet(&pool->tree, block, newSp);
             list_add(&newSp->list, &pool->nonFull);
             pool->subPoolNum++;
             sp = newSp;
@@ -230,7 +266,7 @@ void PagePoolFree(struct PagePool * pool, logical_page_t page)
     {
         list_del(&sp->list);
         pool->subPoolNum--;
-        RadixTreeSet(&tree, sp->block, NULL);
+        RadixTreeSet(&pool->tree, sp->block, NULL);
         emptySp = sp;
     }
 
@@ -243,4 +279,45 @@ void PagePoolFree(struct PagePool * pool, logical_page_t page)
     {
         PageSubPoolDeprecate(pool, emptySp, 100);
     }
+}
+
+void PagePoolRecoveryInit(struct PagePool * pool, struct BlockPool * blockPool, struct NVMAccesser acc)
+{
+    PagePoolInit(pool, blockPool, acc);
+}
+
+void PagePoolRecoveryNotifyPageBusy(struct PagePool * pool, logic_addr_t addr)
+{
+    struct PageSubPool * sp;
+    logical_block_t block;
+    int index;
+    logical_page_t page = logical_addr_to_page(addr);
+
+    sp = NULL;
+    block = logical_page_to_block(page);
+    sp = RadixTreeGet(&pool->tree, block);
+    if (sp == NULL)
+    {
+        sp = CreatePageSubPool(block, 1);
+        RadixTreeSet(&pool->tree, block, sp);
+        list_add(&sp->list, &pool->nonFull);
+        pool->subPoolNum++;
+        BlockPoolRecoveryNotifyBlockBusy(pool->blockPool, logical_addr_to_block(page), 1);
+    }
+
+    index = BitmapIndexOfPage(page);
+    BitmapSet(sp->bitmap, index);
+    sp->count--;
+
+    if (sp->count == 0)
+    {
+        list_del(&sp->list);
+        pool->subPoolNum--;
+        RadixTreeSet(&pool->tree, sp->block, NULL);
+        kfree(sp);
+    }
+}
+
+void PagePoolRecoveryEnd(struct PagePool * pool)
+{
 }

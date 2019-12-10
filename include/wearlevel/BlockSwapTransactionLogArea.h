@@ -61,8 +61,6 @@ struct BlockSwapTransaction
 
 void BlockSwapTransactionLogAreaFormat(struct BlockSwapTransactionLogArea * pArea, nvm_addr_t addr, int startIndex);
 void BlockSwapTransactionLogAreaInit(struct BlockSwapTransactionLogArea * pArea, nvm_addr_t addr, int startIndex);
-// void BlockSwapTransactionLogAreaRecovery(struct BlockSwapTransactionLogArea * pArea, nvm_addr_t addr,
-//                                          struct WearLeveler * wl);
 void BlockSwapTransactionLogAreaUninit(struct BlockSwapTransactionLogArea * pArea);
 void BlockSwapTransactionInit(struct BlockSwapTransaction * pTran, struct BlockSwapTransactionLogArea * pArea);
 void BlockSwapTransactionUninit(struct BlockSwapTransaction * pTran);
@@ -76,7 +74,8 @@ void DoBlockQuickSwapTransaction(struct BlockSwapTransaction * pTran, struct Map
 void DoBlockSwapTransaction(struct BlockSwapTransaction * pTran, struct MapInfoManager * manager,
                             struct BlockMapInfo * oldBlockInfo, struct BlockMapInfo * newBlockInfo,
                             struct SwapTable * pSwapTable, nvm_addr_t dataStartOffset);
-// void BlockSwapTransactionLogAreaRecovery(struct BlockSwapTransactionLogArea * pArea, nvm_addr_t addr,
-//                                          struct WearLeveler * wl);
+
+void BlockSwapTransactionLogAreaRecovery(struct BlockSwapTransactionLogArea * pArea, struct MapInfoManager * manager,
+                                         nvm_addr_t areaAddr, nvm_addr_t dataStartOffset);
 
 #endif

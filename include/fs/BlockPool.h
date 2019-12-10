@@ -19,4 +19,8 @@ void BlockPoolExtentGet(struct BlockPool * pool, UINT64 blockNum, struct ExtentC
 void BlockPoolPut(struct BlockPool * pool, UINT64 blockNum, logical_block_t * blockArray);
 void BlockPoolExtentPut(struct BlockPool * pool, struct ExtentContainer * container);
 
+void BlockPoolRecoveryInit(struct BlockPool * pool);
+void BlockPoolRecoveryNotifyBlockBusy(struct BlockPool * pool, logical_block_t startBlock, UINT64 blockNum);
+void BlockPoolRecoveryEnd(struct BlockPool * pool, UINT64 totalBlockNum);
+
 #endif

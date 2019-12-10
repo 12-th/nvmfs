@@ -27,17 +27,35 @@ struct ExtentTree
     UINT64 size;
 };
 
+struct ExtentNode
+{
+    struct Extent extent;
+    struct rb_node node;
+};
+
 void ExtentTreeInit(struct ExtentTree * tree);
 void ExtentTreeUninit(struct ExtentTree * tree);
 void ExtentTreePut(struct ExtentTree * tree, UINT64 start, UINT64 end, gfp_t flags);
 void ExtentTreeGet(struct ExtentTree * tree, struct ExtentContainer * container, UINT64 size, gfp_t flags);
 void ExtentTreeBatchPut(struct ExtentTree * tree, struct ExtentContainer * container, gfp_t flags);
+
+void ExtentTreeReverseHolesAndExtents(struct ExtentTree * tree, UINT64 maxSize);
+
 void ExtentContainerInit(struct ExtentContainer * container, gfp_t flags);
 void ExtentContainerUninit(struct ExtentContainer * container);
 void ExtentContainerClear(struct ExtentContainer * container);
 void ExtentContainerAppend(struct ExtentContainer * container, UINT64 start, UINT64 end, gfp_t flags);
 
+static inline struct Extent * ExtentContainerGetByIndex(struct ExtentContainer * container, UINT64 index)
+{
+    return &container->array[index];
+}
+
 #define for_each_extent_in_container(extent, container)                                                                \
     for (extent = (container)->array; extent < (container)->array + (container)->currentNum; ++extent)
+
+#define for_each_extent_in_extent_tree(extent, rbnode, tree)                                                           \
+    for (rbnode = rb_first(&(tree)->root), extent = container_of(rbnode, struct ExtentNode, node); rbnode;             \
+         rbnode = rb_next(rbnode), extent = container_of(rbnode, struct ExtentNode, node))
 
 #endif

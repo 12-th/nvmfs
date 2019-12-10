@@ -61,4 +61,33 @@ static __attribute__((unused)) UINT32 * Shuffle(UINT32 * arr, int size)
     return arr;
 }
 
+static __attribute__((unused)) UINT64 * GenRandomArray64(UINT32 size)
+{
+    UINT64 * arr;
+    int i;
+
+    arr = kmalloc(sizeof(UINT64) * size, GFP_KERNEL);
+    for (i = 0; i < size; ++i)
+    {
+        UINT64 value;
+
+        get_random_bytes(&value, sizeof(value));
+        arr[i] = value;
+    }
+    return arr;
+}
+
+static __attribute__((unused)) UINT64 * GenSeqArray64(int size)
+{
+    UINT64 * arr;
+    int i;
+
+    arr = kmalloc(sizeof(UINT64) * size, GFP_KERNEL);
+    for (i = 0; i < size; ++i)
+    {
+        arr[i] = i;
+    }
+    return arr;
+}
+
 #endif

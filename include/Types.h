@@ -19,6 +19,9 @@ typedef UINT64 logic_addr_t;
 typedef UINT64 physical_page_t;
 typedef UINT64 logical_page_t;
 
+typedef UINT64 nvmfs_ino_t;
+typedef UINT8 nvmfs_inode_type;
+
 #define BITS_4K 12
 #define SIZE_4K (1UL << BITS_4K)
 
@@ -28,6 +31,7 @@ typedef UINT64 logical_page_t;
 #define invalid_nvm_addr (-1UL)
 #define invalid_block (-1)
 #define invalid_page (-1UL)
+#define invalid_nvmfs_ino (-1UL)
 
 static inline ALWAYS_INLINE logical_block_t logical_addr_to_block(logic_addr_t addr)
 {

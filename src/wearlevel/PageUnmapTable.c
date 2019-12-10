@@ -218,3 +218,19 @@ void PageUnmapTableBatchFormat(struct PageUnmapTable * pTable, physical_block_t 
         }
     }
 }
+
+void PageUnmapTableRecoveryBegin(struct PageUnmapTable * pTable, struct BlockUnmapTable * pBlockUnmapTable,
+                                 nvm_addr_t addr, UINT64 pageNum)
+{
+    pTable->addr = addr;
+    pTable->pBlockUnmapTable = pBlockUnmapTable;
+}
+
+void PageUnmapTableRecoverySet(struct PageUnmapTable * pTable, physical_page_t pageSeq, struct PageInfo * info)
+{
+    PageUnmapTableSet(pTable, pageSeq, info);
+}
+
+void PageUnmapTableRecoveryEnd(struct PageUnmapTable * pTable)
+{
+}

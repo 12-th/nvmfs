@@ -94,3 +94,108 @@ TEST(ExtentTreeTest, ExtetnContainerTest)
     ExtentContainerUninit(&container);
     kfree(array);
 }
+
+TEST(ExtentTreeTest, reverseTest1)
+{
+    struct ExtentTree tree;
+    struct ExtentNode * extent;
+    struct rb_node * rbnode;
+
+    ExtentTreeInit(&tree);
+    ExtentTreeReverseHolesAndExtents(&tree, 100);
+    for_each_extent_in_extent_tree(extent, rbnode, &tree)
+    {
+        EXPECT_EQ(extent->extent.start, 0);
+        EXPECT_EQ(extent->extent.end, 100);
+    }
+    ExtentTreeUninit(&tree);
+}
+
+TEST(ExtentTreeTest, reverseTest2)
+{
+    struct ExtentTree tree;
+    struct ExtentNode * extent;
+    struct rb_node * rbnode;
+
+    ExtentTreeInit(&tree);
+    ExtentTreePut(&tree, 0, 100, GFP_KERNEL);
+    ExtentTreeReverseHolesAndExtents(&tree, 100);
+    for_each_extent_in_extent_tree(extent, rbnode, &tree)
+    {
+        EXPECT_EQ(extent, NULL);
+        EXPECT_TRUE(0);
+    }
+    ExtentTreeUninit(&tree);
+}
+
+TEST(ExtentTreeTest, reverseTest3)
+{
+    struct ExtentTree tree;
+    struct ExtentNode * extent;
+    struct rb_node * rbnode;
+    int i = 0;
+
+    ExtentTreeInit(&tree);
+    ExtentTreePut(&tree, 0, 10, GFP_KERNEL);
+    ExtentTreePut(&tree, 20, 50, GFP_KERNEL);
+    ExtentTreePut(&tree, 70, 90, GFP_KERNEL);
+    ExtentTreeReverseHolesAndExtents(&tree, 100);
+    for_each_extent_in_extent_tree(extent, rbnode, &tree)
+    {
+        if (i == 0)
+        {
+            EXPECT_EQ(extent->extent.start, 10);
+            EXPECT_EQ(extent->extent.end, 20);
+        }
+        else if (i == 1)
+        {
+            EXPECT_EQ(extent->extent.start, 50);
+            EXPECT_EQ(extent->extent.end, 70);
+        }
+        else if (i == 2)
+        {
+            EXPECT_EQ(extent->extent.start, 90);
+            EXPECT_EQ(extent->extent.end, 100);
+        }
+        else
+        {
+            EXPECT_TRUE(0);
+        }
+        ++i;
+    }
+    // expect 10-20,50-70,90-100
+    ExtentTreeUninit(&tree);
+}
+
+TEST(ExtentTreeTest, reverseTest4)
+{
+    struct ExtentTree tree;
+    struct ExtentNode * extent;
+    struct rb_node * rbnode;
+    int i = 0;
+
+    ExtentTreeInit(&tree);
+    ExtentTreePut(&tree, 20, 50, GFP_KERNEL);
+    ExtentTreePut(&tree, 70, 100, GFP_KERNEL);
+    ExtentTreeReverseHolesAndExtents(&tree, 100);
+    for_each_extent_in_extent_tree(extent, rbnode, &tree)
+    {
+        if (i == 0)
+        {
+            EXPECT_EQ(extent->extent.start, 0);
+            EXPECT_EQ(extent->extent.end, 20);
+        }
+        else if (i == 1)
+        {
+            EXPECT_EQ(extent->extent.start, 50);
+            EXPECT_EQ(extent->extent.end, 70);
+        }
+        else
+        {
+            EXPECT_TRUE(0);
+        }
+        ++i;
+    }
+    // expect 0-20,50-70
+    ExtentTreeUninit(&tree);
+}

@@ -53,4 +53,9 @@ void PageUnmapTableSet(struct PageUnmapTable * pTable, physical_page_t pageSeq, 
 void PageUnmapTableBatchGet(struct PageUnmapTable * pTable, physical_block_t block, struct PageInfo * infos);
 void PageUnmapTableBatchFormat(struct PageUnmapTable * pTable, physical_block_t block, UINT8 busy);
 
+void PageUnmapTableRecoveryBegin(struct PageUnmapTable * pTable, struct BlockUnmapTable * pBlockUnmapTable,
+                                 nvm_addr_t addr, UINT64 pageNum);
+void PageUnmapTableRecoverySet(struct PageUnmapTable * pTable, physical_page_t pageSeq, struct PageInfo * info);
+void PageUnmapTableRecoveryEnd(struct PageUnmapTable * pTable);
+
 #endif

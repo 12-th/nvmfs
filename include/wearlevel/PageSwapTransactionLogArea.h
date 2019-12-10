@@ -48,7 +48,6 @@ struct PageSwapTransaction
 
 void PageSwapTransactionLogAreaFormat(struct PageSwapTransactionLogArea * pArea, nvm_addr_t addr, int startIndex);
 void PageSwapTransactionLogAreaInit(struct PageSwapTransactionLogArea * pArea, nvm_addr_t addr, int startIndex);
-void PageSwapTransactionLogAreaRecovery(struct PageSwapTransactionLogArea * pArea, nvm_addr_t addr);
 void PageSwapTransactionLogAreaUninit(struct PageSwapTransactionLogArea * pArea);
 void PageSwapTransactionInit(struct PageSwapTransaction * pTran, struct PageSwapTransactionLogArea * pArea);
 void PageSwapTransactionUninit(struct PageSwapTransaction * pTran);
@@ -62,4 +61,6 @@ void DoPageCompleteSwapTransaction(struct PageSwapTransaction * pTran, struct Pa
 void DoPageSwapTransaction(struct PageSwapTransaction * pTran, struct PageMapInfo * oldPageInfo,
                            struct PageMapInfo * newPageInfo, struct MapInfoManager * manager,
                            struct SwapTable * pSwapTable, nvm_addr_t dataStartOffset);
+void PageSwapTransactionLogAreaRecovery(struct PageSwapTransactionLogArea * pArea, struct MapInfoManager * manager,
+                                        nvm_addr_t areaAddr, nvm_addr_t dataStartOffset);
 #endif

@@ -257,14 +257,64 @@ UINT32 MapInfoManagerRead(struct MapInfoManager * manager, logic_addr_t addr, vo
 
 UINT32 MapInfoManagerWrite(struct MapInfoManager * manager, logic_addr_t addr, void * buffer, UINT32 size)
 {
-    UINT32 readSize;
+    UINT32 writeSize;
 
     NVMAccessControllerSharedLock(&manager->nvmAccessController, addr);
-    readSize =
+    writeSize =
         CalculateMaxReadWriteSize(addr, size, NVMAccessControllerIsBlockSplited(&manager->nvmAccessController, addr));
-    NVMWrite(NVMAccessControllerLogicAddrTranslate(&manager->nvmAccessController, addr), readSize, buffer);
+    NVMWrite(NVMAccessControllerLogicAddrTranslate(&manager->nvmAccessController, addr), writeSize, buffer);
     NVMAccessControllerSharedUnlock(&manager->nvmAccessController, addr);
-    return readSize;
+    return writeSize;
+}
+
+UINT32 MapInfoManagerMemset(struct MapInfoManager * manager, logic_addr_t addr, int value, UINT32 size)
+{
+    UINT32 writeSize;
+
+    NVMAccessControllerSharedLock(&manager->nvmAccessController, addr);
+    writeSize =
+        CalculateMaxReadWriteSize(addr, size, NVMAccessControllerIsBlockSplited(&manager->nvmAccessController, addr));
+    NVMemset(NVMAccessControllerLogicAddrTranslate(&manager->nvmAccessController, addr), value, writeSize);
+    NVMAccessControllerSharedUnlock(&manager->nvmAccessController, addr);
+    return writeSize;
+}
+
+UINT32 MapInfoManagerMemcpy(struct MapInfoManager * manager, logic_addr_t srcAddr, logic_addr_t dstAddr, UINT32 size,
+                            int * isDstFullWrite)
+{
+    UINT32 srcCanReadSize, dstCanWriteSize;
+    UINT32 copySize;
+    if (srcAddr < dstAddr)
+    {
+        NVMAccessControllerSharedLock(&manager->nvmAccessController, srcAddr);
+        NVMAccessControllerSharedLock(&manager->nvmAccessController, dstAddr);
+    }
+    else
+    {
+        NVMAccessControllerSharedLock(&manager->nvmAccessController, dstAddr);
+        NVMAccessControllerSharedLock(&manager->nvmAccessController, srcAddr);
+    }
+
+    srcCanReadSize = CalculateMaxReadWriteSize(
+        srcAddr, size, NVMAccessControllerIsBlockSplited(&manager->nvmAccessController, srcAddr));
+    dstCanWriteSize = CalculateMaxReadWriteSize(
+        dstAddr, size, NVMAccessControllerIsBlockSplited(&manager->nvmAccessController, dstAddr));
+    copySize = srcCanReadSize < dstCanWriteSize ? srcCanReadSize : dstCanWriteSize;
+    NVMemcpy(NVMAccessControllerLogicAddrTranslate(&manager->nvmAccessController, dstAddr),
+             NVMAccessControllerLogicAddrTranslate(&manager->nvmAccessController, srcAddr), copySize);
+    *isDstFullWrite = (dstCanWriteSize == copySize);
+
+    if (srcAddr < dstAddr)
+    {
+        NVMAccessControllerSharedUnlock(&manager->nvmAccessController, dstAddr);
+        NVMAccessControllerSharedUnlock(&manager->nvmAccessController, srcAddr);
+    }
+    else
+    {
+        NVMAccessControllerSharedUnlock(&manager->nvmAccessController, srcAddr);
+        NVMAccessControllerSharedUnlock(&manager->nvmAccessController, dstAddr);
+    }
+    return copySize;
 }
 
 void MapInfoManagerTrim(struct MapInfoManager * manager, logic_addr_t addr)
@@ -359,4 +409,34 @@ void MapInfoManagerMerge(struct MapInfoManager * manager, logic_addr_t addr, str
 int MapInfoManagerIsBlockSplited(struct MapInfoManager * manager, logic_addr_t addr)
 {
     return NVMAccessControllerIsBlockSplited(&manager->nvmAccessController, addr);
+}
+
+void MapInfoManagerRecoveryBegin(struct MapInfoManager * manager, struct Layouter * layouter)
+{
+    manager->dataStartOffset = DataStartAddrQuery(layouter);
+    BlockUnmapTableRecoveryBegin(&manager->blockUnmapTable, BlockUnmapTableAddrQuery(layouter),
+                                 BlockNumQuery(layouter));
+    PageUnmapTableRecoveryBegin(&manager->pageUnmapTable, &manager->blockUnmapTable, PageUnmapTableAddrQuery(layouter),
+                                PageNumQuery(layouter));
+}
+
+void MapInfoManagerRecoverySwapBlock(struct MapInfoManager * manager, physical_block_t block1,
+                                     struct BlockInfo * block1Info, physical_block_t block2,
+                                     struct BlockInfo * block2Info)
+{
+    BlockUnmapTableSet(&manager->blockUnmapTable, block1, block1Info);
+    BlockUnmapTableSet(&manager->blockUnmapTable, block2, block2Info);
+}
+
+void MapInfoManagerRecoverySwapPage(struct MapInfoManager * manager, physical_page_t page1, struct PageInfo * page1Info,
+                                    physical_page_t page2, struct PageInfo * page2Info)
+{
+    PageUnmapTableSet(&manager->pageUnmapTable, page1, page1Info);
+    PageUnmapTableSet(&manager->pageUnmapTable, page2, page2Info);
+}
+
+void MapInfoManagerRecoveryEnd(struct MapInfoManager * manager)
+{
+    PageUnmapTableRecoveryEnd(&manager->pageUnmapTable);
+    BlockUnmapTableRecoveryEnd(&manager->blockUnmapTable);
 }

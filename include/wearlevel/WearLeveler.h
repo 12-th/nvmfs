@@ -38,6 +38,9 @@ void NVMPagesMerge(struct WearLeveler * wl, logic_addr_t addr);
 int WearLevelerRead(struct WearLeveler * wl, logic_addr_t addr, void * buffer, UINT32 size);
 UINT32 WearLevelerWrite(struct WearLeveler * wl, logic_addr_t addr, void * buffer, UINT32 size,
                         UINT32 increasedWearCount);
+UINT32 WearLevelerMemset(struct WearLeveler * wl, logic_addr_t addr, UINT32 size, int value, UINT32 increasedWearCount);
+UINT32 WearLevelerMemcpy(struct WearLeveler * wl, logic_addr_t srcAddr, logic_addr_t dstAddr, UINT32 size,
+                         UINT32 increasedWearCount);
 void WearLevelerTrim(struct WearLeveler * wl, logic_addr_t addr);
 
 #endif

@@ -126,3 +126,18 @@ void BlockPoolExtentPut(struct BlockPool * pool, struct ExtentContainer * contai
     ExtentTreeBatchPut(&pool->tree, container, GFP_KERNEL);
     mutex_unlock(&pool->lock);
 }
+
+void BlockPoolRecoveryInit(struct BlockPool * pool)
+{
+    BlockPoolInit(pool);
+}
+
+void BlockPoolRecoveryNotifyBlockBusy(struct BlockPool * pool, logical_block_t startBlock, UINT64 blockNum)
+{
+    ExtentTreePut(&pool->tree, startBlock, startBlock + blockNum, GFP_KERNEL);
+}
+
+void BlockPoolRecoveryEnd(struct BlockPool * pool, UINT64 totalBlockNum)
+{
+    ExtentTreeReverseHolesAndExtents(&pool->tree, totalBlockNum);
+}

@@ -56,6 +56,11 @@ static inline void * __get_free_page(gfp_t flags)
     return alloc_page(flags);
 }
 
+static inline unsigned long __get_free_pages(gfp_t gfp_mask, unsigned int order)
+{
+    return (unsigned long)alloc_pages(gfp_mask, order);
+}
+
 static inline void * page_address(struct page * page)
 {
     return page;

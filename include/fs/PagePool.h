@@ -25,14 +25,17 @@ struct PagePool
     struct BlockPool * blockPool;
     spinlock_t lock;
     struct NVMAccesser acc;
+    struct RadixTree tree;
 };
-
-void PagePoolGlobalInit(void);
-void PagePoolGlobalUninit(void);
 
 void PagePoolInit(struct PagePool * pool, struct BlockPool * blockPool, struct NVMAccesser acc);
 void PagePoolUninit(struct PagePool * pool);
-logical_page_t PagePoolAlloc(struct PagePool * pool);
-void PagePoolFree(struct PagePool * pool, logical_page_t page);
+logic_addr_t PagePoolAlloc(struct PagePool * pool);
+logic_addr_t PagePoolAllocWithHint(struct PagePool * pool, logic_addr_t hint);
+void PagePoolFree(struct PagePool * pool, logic_addr_t page);
+
+void PagePoolRecoveryInit(struct PagePool * pool, struct BlockPool * blockPool, struct NVMAccesser acc);
+void PagePoolRecoveryNotifyPageBusy(struct PagePool * pool, logic_addr_t addr);
+void PagePoolRecoveryEnd(struct PagePool * pool);
 
 #endif
