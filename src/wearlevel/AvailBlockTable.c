@@ -1,7 +1,6 @@
 #include "AvailBlockTable.h"
 #include "BlockWearTable.h"
 #include "NVMOperations.h"
-#include "SuperBlock.h"
 #include <linux/mm.h>
 
 static inline void AddBlockToHead(struct AvailBlockTable * pTable, int index, physical_block_t block)

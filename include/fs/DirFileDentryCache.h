@@ -6,6 +6,8 @@
 #include <linux/rbtree.h>
 
 struct CircularBuffer;
+struct Log;
+struct NVMAccesser;
 
 #define FILE_DENTRY_HASH_BIT 3
 
@@ -15,13 +17,17 @@ struct DentryNode
     nvmfs_inode_type type;
     logic_addr_t nameAddr;
     UINT64 nameLen;
-    struct hlist_node node;
+    UINT32 nameHash;
+    struct hlist_node inonode;
+    struct hlist_node namenode;
 };
 
 struct DirFileDentryCache
 {
     UINT64 totalDentryNameLen;
-    DECLARE_HASHTABLE(hash, FILE_DENTRY_HASH_BIT);
+    UINT64 dentryNum;
+    DECLARE_HASHTABLE(inohash, FILE_DENTRY_HASH_BIT);
+    DECLARE_HASHTABLE(namehash, FILE_DENTRY_HASH_BIT);
 };
 
 struct DentryRecoveryNode
@@ -37,10 +43,17 @@ struct DirFileDentryRecoveryCache
 
 void DirFileDentryCacheInit(struct DirFileDentryCache * cache);
 void DirFileDentryCacheUninit(struct DirFileDentryCache * cache);
-struct DentryNode * DirFileDentryCacheLookup(struct DirFileDentryCache * cache, nvmfs_ino_t ino);
-int DirFileDentryCacheAppendDentry(struct DirFileDentryCache * cache, nvmfs_ino_t ino, nvmfs_inode_type type,
-                                   logic_addr_t nameAddr, UINT64 nameLen);
+struct DentryNode * DirFileDentryCacheLookupByIno(struct DirFileDentryCache * cache, nvmfs_ino_t ino);
+struct DentryNode * DirFileDentryCacheLookupByName(struct DirFileDentryCache * cache, char * name, UINT32 nameHash,
+                                                   UINT64 nameLen, struct Log * log, struct NVMAccesser * acc);
+int DirFileDentryCacheAppendDentryCheck(struct DirFileDentryCache * cache, nvmfs_ino_t ino, void * name,
+                                        UINT32 nameHash, UINT32 nameLen, struct Log * log, struct NVMAccesser * acc);
+int DirFileDentryCacheJustAppendDentry(struct DirFileDentryCache * cache, nvmfs_ino_t ino, nvmfs_inode_type type,
+                                       logic_addr_t nameAddr, UINT32 nameHash, UINT64 nameLen);
 int DirFileDentryCacheRemoveDentry(struct DirFileDentryCache * cache, nvmfs_ino_t ino);
+void DirFileDentryCacheIterate(struct DirFileDentryCache * cache,
+                               int (*func)(void * data, UINT8 type, const char * name, UINT32 len, nvmfs_ino_t ino),
+                               void * data, struct Log * log, struct NVMAccesser * acc);
 void DirFileDentryCacheDestroy(struct DirFileDentryCache * cache);
 
 void DirFileDentryRecoveryCacheInit(struct DirFileDentryRecoveryCache * cr);

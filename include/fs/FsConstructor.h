@@ -18,11 +18,13 @@ struct FsConstructor
     nvm_addr_t inodeTableAddr;
     UINT64 inodeTableSize;
     UINT64 totalBlockNum;
+    UINT64 nvmSizeBits;
+    UINT64 wearLevelerReserveSize;
 };
 
-void FsConstructInit(struct FsConstructor * ctor, struct BlockPool * bpool, struct PagePool * ppool,
-                     struct WearLeveler * wl, struct InodeTable * inodeTable, nvm_addr_t inodeTableAddr,
-                     UINT64 inodeTableSize, UINT64 totalBlockNum);
+void FsConstructorInit(struct FsConstructor * ctor, struct BlockPool * bpool, struct PagePool * ppool,
+                       struct WearLeveler * wl, struct InodeTable * inodeTable, nvm_addr_t inodeTableAddr,
+                       UINT64 inodeTableSize, UINT64 totalBlockNum, UINT64 nvmSizeBits, UINT64 wearLevelerReserveSize);
 void FsConstructorBegin(struct FsConstructor * ctor);
 void FsConstructorEnd(struct FsConstructor * ctor);
 void FsConstructorRun(struct FsConstructor * ctor, nvmfs_ino_t rootIno);

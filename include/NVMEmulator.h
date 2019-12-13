@@ -1,25 +1,58 @@
 #ifndef NVM_EMULATOR_H
 #define NVM_EMULATOR_H
 
-#error to be implement
+#include "AtomicFunctions.h"
+#include "Types.h"
+#include <linux/string.h>
 
-#define NVMReadIMPL(offset, size, buffer)
+extern void * NVMEmulatorAddr;
+extern UINT64 NVMEmulatorSize;
 
-#define NVMWriteIMPL(offset, size, buffer)
+int NVMEmulatorInit(UINT64 size);
+void NVMEmulatorUninit(void);
 
-#define NVMemcpyIMPL(dst, src, size)
+#define NVMInitIMPL(size) NVMEmulatorInit(size)
 
-#define NVMemsetIMPL(dst, val, size)
+#define NVMUninitIMPL() NVMEmulatorUninit()
 
-#define NVMInitIMPL(size)
+#define NVMReadIMPL(offset, size, buffer)                                                                              \
+    ({                                                                                                                 \
+        memcpy(buffer, NVMEmulatorAddr + offset, size);                                                                \
+        size;                                                                                                          \
+    })
 
-#define NVMUninitIMPL()
+#define NVMWriteIMPL(offset, size, buffer)                                                                             \
+    ({                                                                                                                 \
+        memcpy(NVMEmulatorAddr + offset, buffer, size);                                                                \
+        size;                                                                                                          \
+    })
 
-#define NVMCASIMPL(offset, size, oldvalue, newvalue)
+#define NVMemcpyIMPL(dst, src, size)                                                                                   \
+    ({                                                                                                                 \
+        memcpy(NVMEmulatorAddr + dst, NVMEmulatorAddr + src, size);                                                    \
+        size;                                                                                                          \
+    })
 
-#define NVMFAAIMPL(offset, size, oldvalue, newvalue)
+#define NVMemsetIMPL(dst, val, size) ({ memset(NVMEmulatorAddr + dst, val, size); })
 
-#define NVMFlushIMPL()
+#define NVMCASIMPL(offset, oldvalue, newvalue)                                                                         \
+    ({                                                                                                                 \
+        BOOL ret = BOOL_COMPARE_AND_SWAP((typeof(oldvalue) *)(NVMEmulatorAddr + offset), oldvalue, newvalue);          \
+        ret;                                                                                                           \
+    })
+
+#define NVMFAAIMPL(offset, delta, type)                                                                                \
+    ({                                                                                                                 \
+        typeof(type) ret = FETCH_AND_ADD((typeof(type) *)(NVMEmulatorAddr + offset), delta);                           \
+        ret;                                                                                                           \
+    })
+
+#define NVMFlushIMPL(ptr)
+#define NVMLoadBarrierIMPL
+#define NVMStoreBarrierIMPL
 #define NVMBarrierIMPL()
+
+#define NVMCrashSimulateIMPL()
+#define NVMCrashRecoverySimulateIMPL()
 
 #endif

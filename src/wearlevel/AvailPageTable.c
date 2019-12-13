@@ -24,7 +24,7 @@ static inline UINT64 BitmapGet(UINT64 * bitmap, int index)
     return bitmap[index >> 6] & (1UL << (index & 63));
 }
 
-static inline unsigned long ffz(unsigned long word)
+static inline unsigned long AvailPageTableFfz(unsigned long word)
 {
     asm("rep; bsf %1,%0" : "=r"(word) : "r"(~word));
     return word;
@@ -37,7 +37,7 @@ static inline int BitmapZeroGet(UINT64 * bitmap)
     {
         if (bitmap[i] != -1UL)
         {
-            return i * 64 + ffz(bitmap[i]);
+            return i * 64 + AvailPageTableFfz(bitmap[i]);
         }
     }
     return -1;
@@ -73,7 +73,7 @@ void PageGroupThresholdIncrease(struct PageGroup * pGroup)
 
 void AvailPageTableInit(struct AvailPageTable * pTable, UINT64 pageNum)
 {
-    pTable->hashTable = kzmalloc(sizeof(struct PageGroup *) * pageNum, GFP_KERNEL);
+    pTable->hashTable = kzalloc(sizeof(struct PageGroup *) * pageNum, GFP_KERNEL);
     pTable->count = pageNum;
     INIT_LIST_HEAD(&pTable->lruHead);
 }

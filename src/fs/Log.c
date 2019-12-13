@@ -19,6 +19,7 @@ int LogFormat(struct Log * log, struct PagePool * pool, UINT64 reserveSize, stru
         return err;
     log->reserveSize = reserveSize;
     log->writeStart = ContinousSpaceCalculateNextAddr(ContinousSpaceStart(&log->cs), reserveSize, acc);
+    ContinousSpaceNotifyUsedSpace(&log->cs, reserveSize);
     ContinousSpaceWrite(&foot, sizeof(struct LogEntryFoot), log->writeStart, acc);
     return 0;
 }

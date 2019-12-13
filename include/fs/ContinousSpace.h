@@ -57,4 +57,9 @@ void ContinousSpaceRecoveryUninit(struct ContinousSpace * cs);
 void ContinousSpaceRebuildBegin(struct ContinousSpace * cs, logic_addr_t firstArea);
 void ContinousSpaceRebuildEnd(struct ContinousSpace * cs, logic_addr_t lastAddr, struct NVMAccesser * acc);
 
+static inline int ContinousSpaceIsSame(struct ContinousSpace * cs1, struct ContinousSpace * cs2)
+{
+    return cs1->firstArea == cs2->firstArea && cs1->restSize == cs2->restSize && cs1->areaNum == cs2->areaNum;
+}
+
 #endif

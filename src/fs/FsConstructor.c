@@ -2,9 +2,9 @@
 #include "FsConstructor.h"
 #include "Inode.h"
 
-void FsConstructInit(struct FsConstructor * ctor, struct BlockPool * bpool, struct PagePool * ppool,
-                     struct WearLeveler * wl, struct InodeTable * inodeTable, nvm_addr_t inodeTableAddr,
-                     UINT64 inodeTableSize, UINT64 totalBlockNum)
+void FsConstructorInit(struct FsConstructor * ctor, struct BlockPool * bpool, struct PagePool * ppool,
+                       struct WearLeveler * wl, struct InodeTable * inodeTable, nvm_addr_t inodeTableAddr,
+                       UINT64 inodeTableSize, UINT64 totalBlockNum, UINT64 nvmSizeBits, UINT64 wearLevelerReserveSize)
 {
     ctor->bpool = bpool;
     ctor->ppool = ppool;
@@ -13,11 +13,13 @@ void FsConstructInit(struct FsConstructor * ctor, struct BlockPool * bpool, stru
     ctor->inodeTableAddr = inodeTableAddr;
     ctor->inodeTableSize = inodeTableSize;
     ctor->totalBlockNum = totalBlockNum;
+    ctor->nvmSizeBits = nvmSizeBits;
+    ctor->wearLevelerReserveSize = wearLevelerReserveSize;
 }
 
 void FsConstructorBegin(struct FsConstructor * ctor)
 {
-    WearLevelerInit(ctor->wl);
+    WearLevelerInit(ctor->wl, ctor->nvmSizeBits, ctor->wearLevelerReserveSize);
     NVMAccesserInit(&ctor->acc, ctor->wl);
     BlockPoolRecoveryInit(ctor->bpool);
     PagePoolRecoveryInit(ctor->ppool, ctor->bpool, ctor->acc);

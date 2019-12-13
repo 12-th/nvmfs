@@ -43,6 +43,7 @@
 struct Layouter
 {
     UINT64 nvmSizeBits;
+    UINT64 reserveDataSize;
     nvm_addr_t superBlock;
     nvm_addr_t swapTableMetadata;
 
@@ -58,11 +59,12 @@ struct Layouter
 
     nvm_addr_t mapTableSerializeData;
 
+    nvm_addr_t reserveData;
+
     nvm_addr_t dataStart;
 };
 
-void LayouterInit(struct Layouter * l, UINT64 nvmSizeBits);
-
+void LayouterInit(struct Layouter * l, UINT64 nvmSizeBits, UINT64 reserveDataSize);
 static inline physical_block_t nvm_addr_to_block(nvm_addr_t addr, UINT64 dataStart)
 {
     return (addr - dataStart) >> BITS_2M;
@@ -176,6 +178,11 @@ static inline ALWAYS_INLINE nvm_addr_t BlockSwapTransactionLogAreaAddrQuery(stru
 static inline ALWAYS_INLINE nvm_addr_t PageSwapTransactionLogAreaAddrQuery(struct Layouter * l)
 {
     return l->pageSwapTransactionLogArea;
+}
+
+static inline ALWAYS_INLINE nvm_addr_t ReserveDataAddrQuery(struct Layouter * l)
+{
+    return l->reserveData;
 }
 
 #endif

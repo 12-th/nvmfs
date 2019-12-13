@@ -84,4 +84,10 @@ void LogRebuildReadReserveData(logic_addr_t firstAreaAddr, void * buffer, UINT64
                                struct NVMAccesser * acc);
 void LogRebuildEnd(struct Log * log, struct NVMAccesser * acc);
 
+static inline int LogIsSame(struct Log * log1, struct Log * log2)
+{
+    return log1->reserveSize == log2->reserveSize && log1->writeStart == log2->writeStart &&
+           ContinousSpaceIsSame(&log1->cs, &log2->cs);
+}
+
 #endif

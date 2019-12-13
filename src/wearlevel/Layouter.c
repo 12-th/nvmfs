@@ -2,7 +2,6 @@
 #include "Config.h"
 #include "Layouter.h"
 #include "PageUnmapTable.h"
-#include "SuperBlock.h"
 #include "SwapTable.h"
 
 static inline UINT64 sizeOfBlockWearTable(UINT64 nvmSizeBits)
@@ -52,12 +51,13 @@ static inline UINT64 sizeOfPageSwapTransactionLogArea(void)
     return PAGE_SWAP_TRANSACTION_LOG_AREA_SIZE;
 }
 
-void LayouterInit(struct Layouter * l, UINT64 nvmSizeBits)
+void LayouterInit(struct Layouter * l, UINT64 nvmSizeBits, UINT64 reserveDataSize)
 {
     l->nvmSizeBits = nvmSizeBits;
+    l->reserveDataSize = reserveDataSize;
 
     l->superBlock = 0;
-    l->swapTableMetadata = sizeof(struct NVMSuperBlock);
+    l->swapTableMetadata = 1UL << 12;
 
     l->blockWearTable = sizeOfReservedSpace();
     l->blockUnmapTable = l->blockWearTable + sizeOfBlockWearTable(nvmSizeBits);
@@ -67,5 +67,6 @@ void LayouterInit(struct Layouter * l, UINT64 nvmSizeBits)
     l->blockSwapTransactionLogArea = l->swapTable + sizeOfSwapTable();
     l->pageSwapTransactionLogArea = l->blockSwapTransactionLogArea + sizeOfBlockSwapTransactionLogArea();
     l->mapTableSerializeData = l->pageSwapTransactionLogArea + sizeOfPageSwapTransactionLogArea();
-    l->dataStart = AlignUpBits(l->mapTableSerializeData + sizeOfMapTableSerializeData(nvmSizeBits), BITS_2M);
+    l->reserveData = l->mapTableSerializeData + l->reserveDataSize;
+    l->dataStart = AlignUpBits(l->reserveData + sizeOfMapTableSerializeData(nvmSizeBits), BITS_2M);
 }

@@ -114,13 +114,11 @@ static void NVMPageWearCountIncrease(struct WearLeveler * wl, logic_addr_t addr,
     PageWearCountSet(&wl->pageWearTable, newPageInfo.physPage, newPageOldWearCount + 1);
 }
 
-void WearLevelerFormat(struct WearLeveler * wl, UINT64 nvmSizeBits, UINT64 nvmBaseAddr)
+void WearLevelerFormat(struct WearLeveler * wl, UINT64 nvmSizeBits, UINT64 reserveSize)
 {
     UINT64 blockNum, pageNum;
 
-    wl->nvmBaseAddr = nvmBaseAddr;
-    SuperBlockFormat(&wl->sb, nvmSizeBits);
-    LayouterInit(&wl->layouter, nvmSizeBits);
+    LayouterInit(&wl->layouter, nvmSizeBits, reserveSize);
     blockNum = BlockNumQuery(&wl->layouter);
     pageNum = PageNumQuery(&wl->layouter);
 
@@ -149,11 +147,11 @@ void WearLevelerUninit(struct WearLeveler * wl)
     BlockWearTableUninit(&wl->blockWearTable);
 }
 
-static void WearLevelerRecovery(struct WearLeveler * wl)
+static void WearLevelerRecovery(struct WearLeveler * wl, UINT64 nvmSizeBits, UINT64 reserveSize)
 {
     nvm_addr_t dataStartOffset;
 
-    LayouterInit(&wl->layouter, NvmBitsQuery(&wl->sb));
+    LayouterInit(&wl->layouter, nvmSizeBits, reserveSize);
     dataStartOffset = DataStartAddrQuery(&wl->layouter);
     MapInfoManagerRecoveryBegin(&wl->mapInfoManager, &wl->layouter);
     BlockSwapTransactionLogAreaRecovery(&wl->blockSwapTransactionLogArea, &wl->mapInfoManager,
@@ -163,13 +161,13 @@ static void WearLevelerRecovery(struct WearLeveler * wl)
     MapInfoManagerRecoveryEnd(&wl->mapInfoManager);
 }
 
-void WearLevelerInit(struct WearLeveler * wl)
+void WearLevelerInit(struct WearLeveler * wl, UINT64 nvmSizeBits, UINT64 reserveSize)
 {
     UINT64 blockNum, pageNum;
 
-    WearLevelerRecovery(wl);
+    WearLevelerRecovery(wl, nvmSizeBits, reserveSize);
 
-    LayouterInit(&wl->layouter, NvmBitsQuery(&wl->sb));
+    LayouterInit(&wl->layouter, nvmSizeBits, reserveSize);
     blockNum = BlockNumQuery(&wl->layouter);
     pageNum = PageNumQuery(&wl->layouter);
 
@@ -184,22 +182,6 @@ void WearLevelerInit(struct WearLeveler * wl)
                                     BlockSwapTransactionLogAreaAddrQuery(&wl->layouter), 0);
     PageSwapTransactionLogAreaInit(&wl->pageSwapTransactionLogArea, PageSwapTransactionLogAreaAddrQuery(&wl->layouter),
                                    0);
-}
-
-void WearLevelerLaunch(struct WearLeveler * wl, UINT64 nvmBaseAddr)
-{
-    wl->nvmBaseAddr = nvmBaseAddr;
-    SuperBlockInit(&wl->sb);
-
-    switch (ShutdownFlagQuery(&wl->sb))
-    {
-    case SUPER_BLOCK_SHUTDOWN_FLAG_NORMAL:
-        WearLevelerInit(wl);
-        break;
-    case SUPER_BLOCK_SHUTDWON_FLAG_ERROR:
-        WearLevelerRecovery(wl);
-        break;
-    };
 }
 
 void NVMBlockSplit(struct WearLeveler * wl, logic_addr_t addr)

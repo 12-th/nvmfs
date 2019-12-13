@@ -1,0 +1,11 @@
+#ifndef FS_CONFIG_H
+#define FS_CONFIG_H
+
+#define FS_NVM_SIZE_BIT 30
+#define FS_NVM_SIZE (1UL << FS_NVM_SIZE_BIT)
+#define FS_NVM_BLOCK_NUM (1UL << (FS_NVM_SIZE_BIT - 21))
+
+#define FS_WEARLEVELER_RESERVE_SIZE (1UL << 21)
+#define FS_INODE_TABLE_SIZE (1UL << 21)
+
+#endif

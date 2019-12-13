@@ -12,7 +12,7 @@ struct page
 #define kmalloc(size, gfp) malloc(size)
 #define kfree(ptr) free(ptr)
 
-static inline void * kzmalloc(size_t size, gfp_t flags)
+static inline void * kzalloc(size_t size, gfp_t flags)
 {
     void * ptr;
 

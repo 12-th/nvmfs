@@ -4,13 +4,14 @@
 #include <linux/slab.h>
 
 // mount superblock, will finally call demofs_fill_sb
-struct dentry * nvmfs_mount(struct file_system_type * pFSType, int flags, const char * devName, void * options)
+struct dentry * nvmfsMount(struct file_system_type * pFSType, int flags, const char * devName, void * options)
 {
     // use mount_nodev because our file system is not on physical block device
-    return mount_nodev(pFSType, flags, options, nvmfs_fill_sb);
+    return mount_nodev(pFSType, flags, options, NvmfsFillSuperBlock);
 }
 
-struct file_system_type nvmfs = {.owner = THIS_MODULE, .name = "nvmfs", .mount = nvmfs_mount, .kill_sb = nvmfs_kill_sb};
+struct file_system_type nvmfs = {
+    .owner = THIS_MODULE, .name = "nvmfs", .mount = nvmfsMount, .kill_sb = NvmfsKillSuperBlock};
 
 // register filesystem
 static int __init init_nvmfs(void)

@@ -12,13 +12,10 @@
 #include "PageSwapTransactionLogArea.h"
 #include "PageUnmapTable.h"
 #include "PageWearTable.h"
-#include "SuperBlock.h"
 #include "SwapTable.h"
 
 struct WearLeveler
 {
-    UINT64 nvmBaseAddr;
-    struct SuperBlock sb;
     struct Layouter layouter;
     struct BlockWearTable blockWearTable;
     struct PageWearTable pageWearTable;
@@ -30,8 +27,8 @@ struct WearLeveler
     struct MapInfoManager mapInfoManager;
 };
 
-void WearLevelerInit(struct WearLeveler * wl);
-void WearLevelerFormat(struct WearLeveler * wl, UINT64 nvmSizeBits, UINT64 nvmBaseAddr);
+void WearLevelerInit(struct WearLeveler * wl, UINT64 nvmSizeBits, UINT64 reserveSize);
+void WearLevelerFormat(struct WearLeveler * wl, UINT64 nvmSizeBits, UINT64 reserveSize);
 void WearLevelerUninit(struct WearLeveler * wl);
 void NVMBlockSplit(struct WearLeveler * wl, logic_addr_t addr);
 void NVMPagesMerge(struct WearLeveler * wl, logic_addr_t addr);
@@ -42,5 +39,10 @@ UINT32 WearLevelerMemset(struct WearLeveler * wl, logic_addr_t addr, UINT32 size
 UINT32 WearLevelerMemcpy(struct WearLeveler * wl, logic_addr_t srcAddr, logic_addr_t dstAddr, UINT32 size,
                          UINT32 increasedWearCount);
 void WearLevelerTrim(struct WearLeveler * wl, logic_addr_t addr);
+
+static inline nvm_addr_t WearLevelerReserveDataAddrQuery(struct WearLeveler * wl)
+{
+    return ReserveDataAddrQuery(&wl->layouter);
+}
 
 #endif

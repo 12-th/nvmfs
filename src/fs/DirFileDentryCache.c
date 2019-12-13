@@ -1,12 +1,15 @@
 #include "CircularBuffer.h"
 #include "DirFileDentryCache.h"
 #include "Log.h"
+#include "NVMAccesser.h"
 #include <linux/slab.h>
 
 void DirFileDentryCacheInit(struct DirFileDentryCache * cache)
 {
     cache->totalDentryNameLen = 0;
-    hash_init(cache->hash);
+    cache->dentryNum = 0;
+    hash_init(cache->inohash);
+    hash_init(cache->namehash);
 }
 
 void DirFileDentryCacheUninit(struct DirFileDentryCache * cache)
@@ -14,18 +17,18 @@ void DirFileDentryCacheUninit(struct DirFileDentryCache * cache)
     int i;
     struct DentryNode * pos;
     struct hlist_node * next;
-    hash_for_each_safe(cache->hash, i, next, pos, node)
+    hash_for_each_safe(cache->inohash, i, next, pos, inonode)
     {
-        hlist_del(&pos->node);
+        hlist_del(&pos->inonode);
         kfree(pos);
     }
 }
 
-struct DentryNode * DirFileDentryCacheLookup(struct DirFileDentryCache * cache, nvmfs_ino_t ino)
+struct DentryNode * DirFileDentryCacheLookupByIno(struct DirFileDentryCache * cache, nvmfs_ino_t ino)
 {
     struct DentryNode * node;
 
-    hash_for_each_possible(cache->hash, node, node, ino)
+    hash_for_each_possible(cache->inohash, node, inonode, ino)
     {
         if (node->ino == ino)
             return node;
@@ -34,21 +37,68 @@ struct DentryNode * DirFileDentryCacheLookup(struct DirFileDentryCache * cache, 
     return NULL;
 }
 
-int DirFileDentryCacheAppendDentry(struct DirFileDentryCache * cache, nvmfs_ino_t ino, nvmfs_inode_type type,
-                                   logic_addr_t nameAddr, UINT64 nameLen)
+static struct DentryNode * DirFileDentryCacheLookupByNameImpl(struct DirFileDentryCache * cache, char * name,
+                                                              UINT32 nameHash, UINT64 nameLen, struct Log * log,
+                                                              struct NVMAccesser * acc)
+{
+    struct DentryNode * node;
+    char * buffer = NULL;
+
+    hash_for_each_possible(cache->namehash, node, namenode, nameHash)
+    {
+        if (node->nameHash != nameHash)
+            continue;
+        if (node->nameLen != nameLen)
+            continue;
+        if (buffer == NULL)
+            buffer = kmalloc(nameLen, GFP_KERNEL);
+        LogRead(log, node->nameAddr, node->nameLen, buffer, acc);
+        if (strcmp(buffer, name) == 0)
+        {
+            kfree(buffer);
+            return node;
+        }
+    }
+    if (buffer)
+        kfree(buffer);
+
+    return NULL;
+}
+
+struct DentryNode * DirFileDentryCacheLookupByName(struct DirFileDentryCache * cache, char * name, UINT32 nameHash,
+                                                   UINT64 nameLen, struct Log * log, struct NVMAccesser * acc)
+{
+    return DirFileDentryCacheLookupByNameImpl(cache, name, nameHash, nameLen, log, acc);
+}
+
+int DirFileDentryCacheAppendDentryCheck(struct DirFileDentryCache * cache, nvmfs_ino_t ino, void * name,
+                                        UINT32 nameHash, UINT32 nameLen, struct Log * log, struct NVMAccesser * acc)
+{
+    struct DentryNode * node;
+    node = DirFileDentryCacheLookupByIno(cache, ino);
+    if (node)
+        return -EEXIST;
+    node = DirFileDentryCacheLookupByNameImpl(cache, name, nameHash, nameLen, log, acc);
+    if (node)
+        return -EEXIST;
+    return 0;
+}
+
+int DirFileDentryCacheJustAppendDentry(struct DirFileDentryCache * cache, nvmfs_ino_t ino, nvmfs_inode_type type,
+                                       logic_addr_t nameAddr, UINT32 nameHash, UINT64 nameLen)
 {
     struct DentryNode * node;
 
-    node = DirFileDentryCacheLookup(cache, ino);
-    if (node)
-        return -EEXIST;
     node = kmalloc(sizeof(struct DentryNode), GFP_KERNEL);
     node->ino = ino;
     node->type = type;
     node->nameAddr = nameAddr;
     node->nameLen = nameLen;
+    node->nameHash = nameHash;
     cache->totalDentryNameLen += nameLen;
-    hash_add(cache->hash, &node->node, ino);
+    cache->dentryNum++;
+    hash_add(cache->inohash, &node->inonode, ino);
+    hash_add(cache->namehash, &node->namenode, nameHash);
     return 0;
 }
 
@@ -56,12 +106,14 @@ int DirFileDentryCacheRemoveDentry(struct DirFileDentryCache * cache, nvmfs_ino_
 {
     struct DentryNode * node;
     struct hlist_node * next;
-    hash_for_each_possible_safe(cache->hash, node, next, node, ino)
+    hash_for_each_possible_safe(cache->inohash, node, next, inonode, ino)
     {
         if (node->ino == ino)
         {
             cache->totalDentryNameLen -= node->nameLen;
-            hash_del(&node->node);
+            cache->dentryNum--;
+            hash_del(&node->inonode);
+            hash_del(&node->namenode);
             kfree(node);
             return 0;
         }
@@ -69,14 +121,43 @@ int DirFileDentryCacheRemoveDentry(struct DirFileDentryCache * cache, nvmfs_ino_
     return -EINVAL;
 }
 
+void DirFileDentryCacheIterate(struct DirFileDentryCache * cache,
+                               int (*func)(void * data, UINT8 type, const char * name, UINT32 len, nvmfs_ino_t ino),
+                               void * data, struct Log * log, struct NVMAccesser * acc)
+{
+    int i;
+    struct DentryNode * node;
+    char * buffer = NULL;
+    UINT32 bufferLen = 0;
+
+    hash_for_each(cache->inohash, i, node, inonode)
+    {
+        int err;
+        if (!buffer || bufferLen < node->nameLen)
+        {
+            kfree(buffer);
+            buffer = kmalloc(node->nameLen, GFP_KERNEL);
+            bufferLen = node->nameLen;
+        }
+        LogRead(log, node->nameAddr, node->nameLen, buffer, acc);
+        err = func(data, node->type, buffer, node->nameLen, node->ino);
+        if (err)
+        {
+            kfree(buffer);
+            return;
+        }
+    }
+    kfree(buffer);
+}
+
 void DirFileDentryCacheDestroy(struct DirFileDentryCache * cache)
 {
     int i;
     struct DentryNode * pos;
     struct hlist_node * next;
-    hash_for_each_safe(cache->hash, i, next, pos, node)
+    hash_for_each_safe(cache->inohash, i, next, pos, inonode)
     {
-        hash_del(&pos->node);
+        hash_del(&pos->inonode);
         kfree(pos);
     }
 }
@@ -91,6 +172,7 @@ void DirFileDentryRecoveryCacheAdd(struct DirFileDentryRecoveryCache * cr, nvmfs
     struct DentryRecoveryNode * node;
     struct rb_node ** new, *parent;
 
+    parent = NULL;
     new = &(cr->root.rb_node);
     node = kmalloc(sizeof(struct DentryRecoveryNode), GFP_KERNEL);
     node->ino = ino;
@@ -110,7 +192,7 @@ void DirFileDentryRecoveryCacheAdd(struct DirFileDentryRecoveryCache * cr, nvmfs
 void DirFileDentryRecoveryCacheRemove(struct DirFileDentryRecoveryCache * cr, nvmfs_ino_t ino)
 {
     struct rb_node * node = cr->root.rb_node;
-    struct DentryRecoveryNode * cur;
+    struct DentryRecoveryNode * cur = NULL;
     while (node)
     {
         cur = container_of(node, struct DentryRecoveryNode, node);

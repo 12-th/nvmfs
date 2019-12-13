@@ -17,14 +17,17 @@ extern void panic(const char * fmt, ...);
 
 #define STATIC_ASSERT(expr, msg) typedef char static_assertion_##msg[(expr) ? 1 : -1]
 
-#define NOT_REACH_HERE() ASSERT(FALSE, "program should not reach here\n")
+#define NOT_REACH_HERE() ASSERT(0, "program should not reach here\n")
 
-#ifndef ALIGN(x, a)
-#define ALIGN(x, a) (((x) + (a)-1) & ~((a)-1))
-#endif
+// #ifndef ALIGN
+// #define ALIGN(x, a) (((x) + (a)-1) & ~((a)-1))
+// #endif
 
 #include <linux/string.h>
 
 #define ALWAYS_INLINE __attribute__((always_inline))
+
+#define spin_lock_uninit(expr)
+#define mutex_uninit(expr)
 
 #endif

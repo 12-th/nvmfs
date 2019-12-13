@@ -16,7 +16,7 @@ void InodeTableFormat(struct InodeTable * pTable, nvm_addr_t addr, UINT64 size)
     pTable->addr = addr;
     pTable->maxInodeNum = maxInodeNum;
     pTable->listTable = kvmalloc(listTableSize, GFP_KERNEL);
-    for (i = 0; i < maxInodeNum - 1; ++i)
+    for (i = 1; i < maxInodeNum - 1; ++i)
     {
         pTable->listTable[i].next = &(pTable->listTable[i + 1]);
     }
@@ -25,14 +25,17 @@ void InodeTableFormat(struct InodeTable * pTable, nvm_addr_t addr, UINT64 size)
     pTable->tail = &pTable->listTable[maxInodeNum - 1];
 }
 
+void InodeTableUninit(struct InodeTable * pTable)
+{
+    kvfree(pTable->listTable);
+}
+
 void InodeTableRecoveryPreinit(struct InodeTable * pTable, nvm_addr_t addr, UINT64 size)
 {
-    UINT64 listTableSize;
-
-    listTableSize = pTable->maxInodeNum * sizeof(struct InodeTableEntry);
+    pTable->maxInodeNum = size / sizeof(void *);
     pTable->addr = addr;
     pTable->listTable = kvmalloc(size, GFP_KERNEL);
-    memset(pTable->listTable, -1, listTableSize);
+    memset(pTable->listTable, -1, pTable->maxInodeNum * sizeof(struct InodeTableEntry));
     pTable->head = pTable->tail = NULL;
 }
 
@@ -113,7 +116,7 @@ void InodeTableUpdateInodeAddr(struct InodeTable * pTable, nvmfs_ino_t ino, logi
     NVMWrite(pTable->addr + sizeof(logic_addr_t) * ino, sizeof(logic_addr_t), &inode);
 }
 
-nvm_addr_t InodeTableGetInodeAddr(struct InodeTable * pTable, nvmfs_ino_t ino)
+logic_addr_t InodeTableGetInodeAddr(struct InodeTable * pTable, nvmfs_ino_t ino)
 {
     return pTable->listTable[ino].inode;
 }

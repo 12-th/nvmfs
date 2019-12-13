@@ -1,19 +1,21 @@
 #include "BlockPool.h"
-#include "FileInode.h"
+#include "FileInodeInfo.h"
 #include "FsConstructor.h"
 #include "Inode.h"
 #include "PagePool.h"
 #include <linux/slab.h>
 
 int FileInodeInfoFormat(struct FileInodeInfo * info, struct PagePool * ppool, struct BlockPool * bpool,
-                        struct NvmInode * inodeData, struct NVMAccesser * acc)
+                        logic_addr_t * firstArea, struct NVMAccesser * acc)
 {
     int err;
 
-    err = LogFormat(&info->log, ppool, sizeof(struct NvmInode), acc);
+    err = LogFormat(&info->log, ppool, sizeof(struct BaseInodeInfo), acc);
     if (err)
         return err;
     FileDataManagerInit(&info->manager, bpool, ppool);
+    LogWriteReserveData(&info->log, sizeof(struct BaseInodeInfo), 0, &info->baseInfo, acc);
+    *firstArea = LogFirstArea(&info->log);
     return 0;
 }
 
@@ -33,18 +35,22 @@ static void MergeFileInodeData(struct FileInodeInfo * info, struct NVMAccesser *
 {
 }
 
-void FileInodeInfoReadData(struct FileInodeInfo * info, void * buffer, UINT64 size, UINT64 fileStart,
-                           struct NVMAccesser * acc)
-{
-    MergeFileInodeData(info, acc);
-    FileDataManagerReadData(&info->manager, buffer, size, fileStart, acc);
-}
-
-void FileInodeInfoWriteData(struct FileInodeInfo * info, void * buffer, UINT64 size, UINT64 fileStart,
+INT64 FileInodeInfoReadData(struct FileInodeInfo * info, void * buffer, UINT64 size, UINT64 fileStart,
                             struct NVMAccesser * acc)
 {
     MergeFileInodeData(info, acc);
-    FileDataManagerWriteData(&info->manager, buffer, size, fileStart, &info->log, acc);
+    return FileDataManagerReadData(&info->manager, buffer, size, fileStart, acc);
+}
+
+INT64 FileInodeInfoWriteData(struct FileInodeInfo * info, void * buffer, UINT64 size, UINT64 fileStart,
+                             struct NVMAccesser * acc)
+{
+    int err;
+    MergeFileInodeData(info, acc);
+    err = FileDataManagerWriteData(&info->manager, buffer, size, fileStart, &info->log, acc);
+    if (err)
+        return err;
+    return size;
 }
 
 //-------------- recovery-------------------
@@ -77,8 +83,8 @@ static void FileInodeRecoveryAddNewSpaceCleanup(UINT8 type, UINT32 size, void * 
 struct LogCleanupOps FileInodeRecoveryCleanupOps[] = {
     {NULL, NULL}, {FileInodeRecoveryAddNewSpacePrepare, FileInodeRecoveryAddNewSpaceCleanup}, {NULL, NULL}};
 
-void FileInodeRecovery(logic_addr_t inodeAddr, struct FsConstructor * ctor, struct CircularBuffer * cb,
-                       struct NVMAccesser * acc)
+void FileInodeInfoRecovery(logic_addr_t inodeAddr, struct FsConstructor * ctor, struct CircularBuffer * cb,
+                           struct NVMAccesser * acc)
 {
     struct FileInodeRecoveryContex contex = {ctor};
     struct Log log;
@@ -144,14 +150,18 @@ struct LogCleanupOps FileInodeRebuildCleanupOps[] = {
     {FileInodeRebuildAddNewSpacePrepare, FileInodeRebuildAddNewSpaceCleanup},
     {FileInodeRebuildWriteDataPrepare, FileInodeRebuildWriteDataCleanup}};
 
-void FileInodeRebuild(struct FileInodeInfo * info, logic_addr_t inodeAddr, struct PagePool * ppool,
-                      struct BlockPool * bpool, struct NVMAccesser * acc)
+void FileInodeInfoRebuild(struct FileInodeInfo * info, logic_addr_t inodeAddr, struct PagePool * ppool,
+                          struct BlockPool * bpool, struct NVMAccesser * acc)
 {
     struct FileInodeRebuildContex context = {.info = info};
-    info->addr = inodeAddr;
     FileDataManagerRebuildBegin(&info->manager, ppool, bpool);
-    LogRebuildBegin(&info->log, inodeAddr, sizeof(struct NvmInode));
+    LogRebuildBegin(&info->log, inodeAddr, sizeof(struct BaseInodeInfo));
     LogRebuild(&info->log, FileInodeRebuildCleanupOps, &context, acc);
     FileDataManagerRebuildEnd(&info->manager);
     LogRebuildEnd(&info->log, acc);
+}
+
+int FileInodeIsInfoSame(struct FileInodeInfo * info1, struct FileInodeInfo * info2)
+{
+    return LogIsSame(&info1->log, &info2->log) && FileDataManagerIsSame(&info1->manager, &info2->manager);
 }

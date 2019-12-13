@@ -1,13 +1,12 @@
 #include "Align.h"
 #include "Layouter.h"
-#include "SuperBlock.h"
 #include "SwapTable.h"
 #include "kutest.h"
 
 TEST(LayouterTest, InitTest)
 {
     const UINT64 SUPER_BLOCK = 0;
-    const UINT64 SWAP_TABLE_METADATA = sizeof(struct NVMSuperBlock);
+    const UINT64 SWAP_TABLE_METADATA = 1UL << 12;
 
     const UINT64 BLOCK_WEAR_TABLE = 1UL << 21;
     const UINT64 BLOCK_UNMAP_TABLE = BLOCK_WEAR_TABLE + (1UL << 21);
@@ -22,7 +21,7 @@ TEST(LayouterTest, InitTest)
     const UINT64 DATA_START = AlignUpBits(MAP_TABLE_SERIALIZE_DATA, BITS_2M);
 
     struct Layouter l;
-    LayouterInit(&l, 40);
+    LayouterInit(&l, 40, 0);
     EXPECT_EQ(l.nvmSizeBits, 40);
     EXPECT_EQ(l.superBlock, SUPER_BLOCK);
     EXPECT_EQ(l.swapTableMetadata, SWAP_TABLE_METADATA);

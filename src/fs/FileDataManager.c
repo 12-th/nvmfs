@@ -1,8 +1,9 @@
 #include "Align.h"
 #include "BlockPool.h"
 #include "FileDataManager.h"
-#include "FileInode.h"
+#include "FileInodeInfo.h"
 #include "Log.h"
+#include <linux/slab.h>
 
 struct FileDataSpace
 {
@@ -21,6 +22,7 @@ void FileDataManagerInit(struct FileDataManager * manager, struct BlockPool * bp
     manager->curArea = manager->curWriteStart = invalid_nvm_addr;
     manager->curSize = 0;
     manager->lastUsedPage = invalid_page;
+    manager->fileMaxLen = 0;
 }
 
 void FileDataManagerUninit(struct FileDataManager * manager)
@@ -56,6 +58,12 @@ static inline UINT64 RestSizeOfCurrentArea(struct FileDataManager * manager)
     return manager->curSize - (manager->curWriteStart - manager->curArea);
 }
 
+static inline void UpdateFileMaxLen(struct FileDataManager * manager, UINT64 fileStart, UINT64 size)
+{
+    if (manager->fileMaxLen < fileStart + size)
+        manager->fileMaxLen = fileStart + size;
+}
+
 static void WriteDataToArea(struct FileDataManager * manager, void * buffer, UINT64 size, UINT64 fileStart,
                             struct Log * log, struct NVMAccesser * acc)
 {
@@ -65,6 +73,7 @@ static void WriteDataToArea(struct FileDataManager * manager, void * buffer, UIN
     LogWrite(log, sizeof(entry), &entry, INODE_LOG_WRITE_DATA, NULL, manager->ppool, acc);
     FileExtentTreeAddExtent(&manager->tree, manager->curWriteStart, fileStart, size, GFP_KERNEL);
     manager->curWriteStart += size;
+    UpdateFileMaxLen(manager, fileStart, size);
 }
 
 static void FileDataManagerWriteDataWithoutNewSpace(struct FileDataManager * manager, void * buffer, UINT64 size,
@@ -296,10 +305,17 @@ int FileDataManagerMergeData(struct FileDataManager * manager, struct Log * log,
     return err;
 }
 
-void FileDataManagerReadData(struct FileDataManager * manager, void * buffer, UINT64 size, UINT64 fileStart,
-                             struct NVMAccesser * acc)
+INT64 FileDataManagerReadData(struct FileDataManager * manager, void * buffer, UINT64 size, UINT64 fileStart,
+                              struct NVMAccesser * acc)
 {
-    FileExtentTreeRead(&manager->tree, fileStart, fileStart + size, buffer, acc);
+    UINT64 end;
+    if (fileStart > manager->fileMaxLen)
+        return -1;
+    end = fileStart + size;
+    if (end > manager->fileMaxLen)
+        end = manager->fileMaxLen;
+    FileExtentTreeRead(&manager->tree, fileStart, end, buffer, acc);
+    return end - fileStart;
 }
 
 void FileDataManagerRebuildBegin(struct FileDataManager * manager, struct PagePool * ppool, struct BlockPool * bpool)
@@ -308,6 +324,7 @@ void FileDataManagerRebuildBegin(struct FileDataManager * manager, struct PagePo
     manager->bpool = bpool;
     FileExtentTreeInit(&manager->tree);
     manager->lastUsedPage = invalid_nvm_addr;
+    manager->fileMaxLen = 0;
 }
 
 void FileDataManagerRebuildAddSpace(struct FileDataManager * manager, logic_addr_t addr, UINT64 size)
@@ -325,6 +342,7 @@ void FileDataManagerRebuildAddExtent(struct FileDataManager * manager, logic_add
 {
     FileExtentTreeAddExtent(&manager->tree, addr, fileStart, size, GFP_KERNEL);
     manager->curWriteStart = addr + size;
+    UpdateFileMaxLen(manager, fileStart, size);
 }
 
 void FileDataManagerRebuildEnd(struct FileDataManager * manager)
@@ -334,4 +352,21 @@ void FileDataManagerRebuildEnd(struct FileDataManager * manager)
         // add new space and crashed
         manager->curWriteStart = manager->curArea;
     }
+}
+
+int FileDataManagerIsSame(struct FileDataManager * manager1, struct FileDataManager * manager2)
+{
+    if (manager1->ppool != manager2->ppool)
+        return 0;
+    if (manager1->bpool != manager2->bpool)
+        return 0;
+    if (manager1->curArea != manager2->curArea)
+        return 0;
+    if (manager1->curWriteStart != manager2->curWriteStart)
+        return 0;
+    if (manager1->curSize != manager2->curSize)
+        return 0;
+    if (manager1->lastUsedPage != manager2->lastUsedPage)
+        return 0;
+    return FileExtentTreeIsSame(&manager1->tree, &manager2->tree);
 }

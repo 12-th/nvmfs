@@ -5,7 +5,7 @@
 
 void RadixTreeInit(struct RadixTree * root)
 {
-    root->root = kzmalloc(sizeof(struct RadixTreeNode), GFP_KERNEL);
+    root->root = kzalloc(sizeof(struct RadixTreeNode), GFP_KERNEL);
 }
 
 static inline UINT64 IndexOfFirstLayer(UINT64 key)
@@ -47,7 +47,7 @@ void RadixTreeSetPrepare(struct RadixTree * root, UINT64 key)
 
     if (!root->root->slots[index1])
     {
-        second = kzmalloc(sizeof(struct RadixTreeNode), GFP_KERNEL);
+        second = kzalloc(sizeof(struct RadixTreeNode), GFP_KERNEL);
         if (!BOOL_COMPARE_AND_SWAP(&root->root->slots[index1], NULL, second))
         {
             kfree(second);
@@ -57,7 +57,7 @@ void RadixTreeSetPrepare(struct RadixTree * root, UINT64 key)
 
     if (!second->slots[index2])
     {
-        third = kzmalloc(sizeof(struct RadixTreeNode), GFP_KERNEL);
+        third = kzalloc(sizeof(struct RadixTreeNode), GFP_KERNEL);
         if (!BOOL_COMPARE_AND_SWAP(&second->slots[index2], NULL, third))
         {
             kfree(third);

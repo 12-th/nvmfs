@@ -38,6 +38,7 @@ void FileExtentTreeRead(struct FileExtentTree * tree, UINT64 start, UINT64 end, 
 UINT64 FileExtentTreeGetEffectiveSize(struct FileExtentTree * tree);
 UINT64 FileExtentTreeGetSpaceSize(struct FileExtentTree * tree);
 void FileExtentTreeUninit(struct FileExtentTree * tree);
+int FileExtentTreeIsSame(struct FileExtentTree * tree1, struct FileExtentTree * tree2);
 
 #define for_each_extent_in_file_extent_tree(extent, tree, node)                                                        \
     for (node = rb_first(&(tree)->fileExtentRoot),                                                                     \

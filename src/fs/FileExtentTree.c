@@ -406,3 +406,54 @@ UINT64 FileExtentTreeCalculateEffectiveSize(struct FileExtentTree * tree)
 {
     return tree->effectiveSize;
 }
+
+static int ExtentTreeIsSame(struct FileExtentTree * tree1, struct FileExtentTree * tree2)
+{
+    struct rb_node *cur1, *cur2;
+    cur1 = rb_first(&tree1->fileExtentRoot);
+    cur2 = rb_first(&tree2->fileExtentRoot);
+    while (cur1 && cur2)
+    {
+        struct FileExtentNode *node1, *node2;
+        node1 = container_of(cur1, struct FileExtentNode, extentNode);
+        node2 = container_of(cur2, struct FileExtentNode, extentNode);
+        if (node1->start != node2->start)
+            return 0;
+        if (node1->size != node2->size)
+            return 0;
+        if (node1->fileStart != node2->fileStart)
+            return 0;
+        cur1 = rb_next(cur1);
+        cur2 = rb_next(cur2);
+    }
+    if (cur1 || cur2)
+        return 0;
+    return 1;
+}
+
+static int SpaceTreeIsSame(struct FileExtentTree * tree1, struct FileExtentTree * tree2)
+{
+    struct rb_node *cur1, *cur2;
+    cur1 = rb_first(&tree1->spaceRoot);
+    cur2 = rb_first(&tree2->spaceRoot);
+    while (cur1 && cur2)
+    {
+        struct FileSpaceNode *node1, *node2;
+        node1 = container_of(cur1, struct FileSpaceNode, node);
+        node2 = container_of(cur2, struct FileSpaceNode, node);
+        if (node1->start != node2->start)
+            return 0;
+        if (node1->size != node2->size)
+            return 0;
+        cur1 = rb_next(cur1);
+        cur2 = rb_next(cur2);
+    }
+    if (cur1 || cur2)
+        return 0;
+    return 1;
+}
+
+int FileExtentTreeIsSame(struct FileExtentTree * tree1, struct FileExtentTree * tree2)
+{
+    return ExtentTreeIsSame(tree1, tree2) && SpaceTreeIsSame(tree1, tree2);
+}

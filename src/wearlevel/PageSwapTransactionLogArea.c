@@ -75,8 +75,8 @@ static void PageSwapTransactionCommitStepx(struct PageSwapTransaction * pTran, U
     default:
         break;
     }
-    NVMWrite(pTran->addr + (unsigned long)offsetof(struct PageSwapTransactionInfo, flags),
-             sizeof(struct PageSwapTransactionInfo), &flags);
+    NVMWrite(pTran->addr + offsetof(struct PageSwapTransactionInfo, flags), sizeof(struct PageSwapTransactionInfoFlags),
+             &flags);
 }
 
 void PageSwapTransactionInit(struct PageSwapTransaction * pTran, struct PageSwapTransactionLogArea * pArea)
@@ -97,7 +97,7 @@ void DoPageQuickSwapTransaction(struct PageSwapTransaction * pTran, struct PageM
     PageSwapTransactionCommitStep1(pTran, oldPageInfo->physPage, newPageInfo->physPage, &oldPageInfo->pageInfo,
                                    &newPageInfo->pageInfo, PAGE_SWAP_QUICK);
     NVMemcpy(page_to_nvm_addr(newPageInfo->physPage, dataStartOffset),
-             page_to_nvm_addr(oldPageInfo->physPage, dataStartOffset), PAGE_SIZE);
+             page_to_nvm_addr(oldPageInfo->physPage, dataStartOffset), SIZE_4K);
     MapInfoManagerSwapPage(manager, oldPageInfo, newPageInfo);
     PageSwapTransactionCommitStepx(pTran, PAGE_SWAP_STEP2, PAGE_SWAP_QUICK);
 }
@@ -109,7 +109,7 @@ void PageQuickSwapTransactionRecovery(struct PageSwapTransaction * pTran, struct
     {
     case PAGE_SWAP_STEP1:
         NVMemcpy(page_to_nvm_addr(info->oldPage, dataStartOffset), page_to_nvm_addr(info->newPage, dataStartOffset),
-                 PAGE_SIZE);
+                 SIZE_4K);
         MapInfoManagerRecoverySwapPage(manager, info->oldPage, &info->newPageInfo, info->newPage, &info->newPageInfo);
         PageSwapTransactionCommitStepx(pTran, PAGE_SWAP_STEP2, PAGE_SWAP_QUICK);
     case PAGE_SWAP_STEP2:

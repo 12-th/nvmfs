@@ -53,7 +53,7 @@ void PagePoolUninit(struct PagePool * pool)
     RadixTreeUninit(&pool->tree, DestroyPageSubPool);
 }
 
-static inline unsigned long ffz(unsigned long word)
+static inline unsigned long PagePoolFfz(unsigned long word)
 {
     asm("rep; bsf %1,%0" : "=r"(word) : "r"(~word));
     return word;
@@ -66,7 +66,7 @@ static inline int BitmapZeroGet(UINT64 * bitmap, int startIndex)
     {
         if (bitmap[i] != -1UL)
         {
-            return i * 64 + ffz(bitmap[i]);
+            return i * 64 + PagePoolFfz(bitmap[i]);
         }
         ++i;
         if (i >= 8)

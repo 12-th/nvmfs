@@ -1,19 +1,34 @@
-#include "DirInode.h"
+#include "DirInodeInfo.h"
 #include "Inode.h"
 
-int DirInodeInfoFormat(struct DirInodeInfo * info, struct PagePool * ppool, struct NvmInode * inodeData,
+static unsigned int DJBHash(char * str, int len)
+{
+    unsigned int hash = 5381;
+    unsigned int i = 0;
+
+    while (i < len)
+    {
+        hash += (hash << 5) + str[i];
+        ++i;
+    }
+
+    return (hash & 0x7FFFFFFF);
+}
+
+int DirInodeInfoFormat(struct DirInodeInfo * info, struct PagePool * ppool, logic_addr_t * firstArea,
                        struct NVMAccesser * acc)
 {
     int err;
     info->pool = ppool;
     DirFileDentryCacheInit(&info->cache);
-    err = LogFormat(&info->log, ppool, sizeof(struct NvmInode), acc);
+    err = LogFormat(&info->log, ppool, sizeof(struct BaseInodeInfo), acc);
     if (err)
     {
         DirFileDentryCacheUninit(&info->cache);
         return err;
     }
-    LogWriteReserveData(&info->log, sizeof(struct NvmInode), 0, inodeData, acc);
+    LogWriteReserveData(&info->log, sizeof(struct BaseInodeInfo), 0, &info->baseInfo, acc);
+    *firstArea = LogFirstArea(&info->log);
     return 0;
 }
 
@@ -29,39 +44,87 @@ void DirInodeInfoDestroy(struct DirInodeInfo * info, struct NVMAccesser * acc)
     LogDestroy(&info->log, acc, info->pool);
 }
 
-int DirInodeInfoLookupDentry(struct DirInodeInfo * info, nvmfs_ino_t ino)
+int DirInodeInfoLookupDentryByIno(struct DirInodeInfo * info, nvmfs_ino_t ino)
 {
     struct DentryNode * node;
-    node = DirFileDentryCacheLookup(&info->cache, ino);
+    node = DirFileDentryCacheLookupByIno(&info->cache, ino);
     if (!node)
         return -EINVAL;
     return 0;
 }
 
-int DirInodeAddDentry(struct DirInodeInfo * info, nvmfs_ino_t ino, char * name, UINT64 len, UINT8 type,
-                      struct NVMAccesser * acc)
+int DirInodeInfoLookupAndGetDentryName(struct DirInodeInfo * info, nvmfs_ino_t ino, char * buffer, UINT64 bufferSize,
+                                       struct NVMAccesser * acc)
+{
+    struct DentryNode * node;
+
+    node = DirFileDentryCacheLookupByIno(&info->cache, ino);
+    if (!node)
+        return -ENOENT;
+    if (bufferSize < node->nameLen)
+    {
+        return -EINVAL;
+    }
+    LogRead(&info->log, node->nameAddr, node->nameLen, buffer, acc);
+    return 0;
+}
+
+int DirInodeInfoLookupDentryByName(struct DirInodeInfo * info, nvmfs_ino_t * retIno, char * name, UINT64 nameLen,
+                                   struct NVMAccesser * acc)
+{
+    UINT32 nameHash;
+    struct DentryNode * node;
+
+    if (strcmp(name, ".") == 0)
+    {
+        *retIno = info->thisIno;
+        return 0;
+    }
+    if (strcmp(name, "..") == 0)
+    {
+        *retIno = info->parentIno;
+        return 0;
+    }
+    nameHash = DJBHash(name, nameLen);
+    node = DirFileDentryCacheLookupByName(&info->cache, name, nameHash, nameLen, &info->log, acc);
+    if (node == NULL)
+        return -ENOENT;
+    *retIno = node->ino;
+    return 0;
+}
+
+int DirInodeInfoAddDentry(struct DirInodeInfo * info, nvmfs_ino_t ino, char * name, UINT64 len, UINT8 type,
+                          struct NVMAccesser * acc)
 {
     struct DirInodeLogAddDentryEntry entry = {.ino = ino, .type = type, .nameLen = len};
     struct LogStepWriteHandle handle;
     logic_addr_t nameAddr;
     int err;
+    UINT32 nameHash;
 
-    err = LogStepWriteBegin(&info->log, &handle, INODE_LOG_ADD_DENTRY, sizeof(entry) + len, info->pool, acc);
+    nameHash = DJBHash(name, len);
+    err = DirFileDentryCacheAppendDentryCheck(&info->cache, ino, name, nameHash, len, &info->log, acc);
     if (err)
         return err;
+    err = LogStepWriteBegin(&info->log, &handle, INODE_LOG_ADD_DENTRY, sizeof(entry) + len, info->pool, acc);
+    if (err)
+    {
+        DirFileDentryCacheRemoveDentry(&info->cache, ino);
+        return err;
+    }
     LogStepWriteContinue(&handle, &entry, sizeof(entry), NULL, acc);
     LogStepWriteContinue(&handle, name, len, &nameAddr, acc);
     LogStepWriteEnd(&handle, acc);
-    err = DirFileDentryCacheAppendDentry(&info->cache, ino, type, nameAddr, len);
+    DirFileDentryCacheJustAppendDentry(&info->cache, ino, type, nameAddr, nameHash, len);
     return err;
 }
 
-int DirInodeRemoveDentry(struct DirInodeInfo * info, nvmfs_ino_t ino, struct NVMAccesser * acc)
+int DirInodeInfoRemoveDentry(struct DirInodeInfo * info, nvmfs_ino_t ino, struct NVMAccesser * acc)
 {
     struct DirInodeLogRemoveDentryEntry entry = {.ino = ino};
     int err;
 
-    if (DirFileDentryCacheLookup(&info->cache, ino) == NULL)
+    if (DirFileDentryCacheLookupByIno(&info->cache, ino) == NULL)
         return -EINVAL;
 
     err = LogWrite(&info->log, sizeof(entry), &entry, INODE_LOG_REMOVE_DENTRY, NULL, info->pool, acc);
@@ -69,6 +132,17 @@ int DirInodeRemoveDentry(struct DirInodeInfo * info, nvmfs_ino_t ino, struct NVM
         return err;
     DirFileDentryCacheRemoveDentry(&info->cache, ino);
     return 0;
+}
+
+void DirInodeInfoIterateDentry(struct DirInodeInfo * info,
+                               int (*func)(void * data, UINT8 type, const char * name, UINT32 len, nvmfs_ino_t ino),
+                               void * data, struct NVMAccesser * acc)
+{
+    if (func(data, info->baseInfo.type, ".", 2, info->baseInfo.thisIno))
+        return;
+    if (func(data, INODE_TYPE_DIR_FILE, "..", 3, info->baseInfo.parentIno))
+        return;
+    DirFileDentryCacheIterate(&info->cache, func, data, &info->log, acc);
 }
 
 //----------------recovery------------------------
@@ -116,8 +190,8 @@ static struct LogCleanupOps DirInodeRecoveryCleanupOps[] = {
     {.prepare = DirInodeRecoveryAddDentryPrepare, .cleanup = DirInodeRecoveryAddDentryCleanup},
     {.prepare = DirInodeRecoveryRemoveDentryPrepare, .cleanup = DirInodeRecoveryRemoveDentryCleanup}};
 
-void DirInodeRecovery(logic_addr_t inodeAddr, struct FsConstructor * ctor, struct CircularBuffer * cb,
-                      struct NVMAccesser * acc)
+void DirInodeInfoRecovery(logic_addr_t inodeAddr, struct FsConstructor * ctor, struct CircularBuffer * cb,
+                          struct NVMAccesser * acc)
 {
     struct Log log;
     struct DirFileDentryRecoveryCache cache;
@@ -155,7 +229,8 @@ static void DirInodeRebuildAddDentryCleanup(UINT8 type, UINT32 size, void * buff
 
     entry = buffer;
     context = data;
-    DirFileDentryCacheAppendDentry(&context->info->cache, entry->ino, entry->type, entryReadEndAddr, entry->nameLen);
+    DirFileDentryCacheJustAppendDentry(&context->info->cache, entry->ino, entry->type, entryReadEndAddr,
+                                       entry->nameHash, entry->nameLen);
 }
 
 static void * DirInodeRebuildRemoveDentryPrepare(UINT32 * size, void * data)
@@ -183,12 +258,13 @@ struct LogCleanupOps DirInodeRebuildCleanupOps[] = {
     {DirInodeRebuildAddDentryPrepare, DirInodeRebuildAddDentryCleanup},
     {DirInodeRebuildRemoveDentryPrepare, DirInodeRebuildRemoveDentryCleanup}};
 
-void DirInodeRebuild(struct DirInodeInfo * info, logic_addr_t addr, struct PagePool * pool, struct NVMAccesser * acc)
+void DirInodeInfoRebuild(struct DirInodeInfo * info, logic_addr_t addr, struct PagePool * pool,
+                         struct NVMAccesser * acc)
 {
     struct DirInodeRebuildContex context = {.info = info};
 
     info->pool = pool;
-    LogRebuildBegin(&info->log, addr, sizeof(struct NvmInode));
+    LogRebuildBegin(&info->log, addr, sizeof(struct BaseInodeInfo));
     DirFileDentryCacheInit(&info->cache);
     LogRebuild(&info->log, DirInodeRebuildCleanupOps, &context, acc);
     LogRebuildEnd(&info->log, acc);

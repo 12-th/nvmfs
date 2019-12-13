@@ -1,23 +1,20 @@
 SOURCE_PATH = $(abspath $(PWD)/..)
+INCLUDE_DIR = fs mocked vfs wearlevel
 
+INCLUDE_PATH  := $(addprefix -I$(SOURCE_PATH)/include/, $(INCLUDE_DIR))
+INCLUDE_PATH += -I$(SOURCE_PATH)/include/
 
 #EXTRA_CFLAGS = -Wall -g //deprecated
-ccflags-y := -Wall -g -DDEBUG -DKERNEL_MODE  -I$(SOURCE_PATH)/include/fs
+ccflags-y := -Wall -g -DDEBUG -DKERNEL_MODE  $(INCLUDE_PATH)
 #asflags-y :=   #$(AS)
 #ldflags-y :=   #$(LD)
 HOST_EXTRACFLAGS += 
 
-
-WHITE_LIST := DirInode.c \
-              FileInode.c \
-              inode.c  \
-              LinkInode.c \
-              nvmfs.c \
-              superblock.c
-OBJS := $(patsubst %.c, %.o, $(addprefix fs/, $(WHITE_LIST)))
-
 #wildcard抓取所有.c文件，notdir删掉这些.c文件的路径名
-#OBJS := $(patsubst %.c, %.o,$(wildcard $(PWD)/*.c))
+OBJS := $(subst $(SOURCE_PATH)/src/, , $(patsubst %.c, %.o,$(wildcard $(PWD)/fs/*.c)))
+OBJS += $(subst $(SOURCE_PATH)/src/, , $(patsubst %.c, %.o,$(wildcard $(PWD)/protection/*.c)))
+OBJS += $(subst $(SOURCE_PATH)/src/, , $(patsubst %.c, %.o,$(wildcard $(PWD)/vfs/*.c)))
+OBJS += $(subst $(SOURCE_PATH)/src/, , $(patsubst %.c, %.o,$(wildcard $(PWD)/wearlevel/*.c)))
 
 obj-m = nvmfs.o
 nvmfs-y = $(OBJS)
