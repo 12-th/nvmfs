@@ -2,7 +2,22 @@
 #include "File.h"
 #include "FileInodeInfo.h"
 #include "FsInfo.h"
+#include "common.h"
 #include <linux/fs.h>
+
+static int NvmfsFileOpen(struct inode * inode, struct file * file)
+{
+    // DEBUG_PRINT("file open, ino is %ld", ((struct BaseInodeInfo *)(inode->i_private))->thisIno);
+    DEBUG_PRINT("file open");
+    return 0;
+}
+
+static int NvmfsFileRelease(struct inode * inode, struct file * file)
+{
+    // DEBUG_PRINT("file close, ino is %ld", ((struct BaseInodeInfo *)(inode->i_private))->thisIno);
+    DEBUG_PRINT("file close");
+    return 0;
+}
 
 static ssize_t NvmfsFileRead(struct file * file, char __user * buffer, size_t size, loff_t * offset)
 {
@@ -66,12 +81,14 @@ static int NvmfsIterate(struct file * file, struct dir_context * context)
 
     dirInfo = file->f_inode->i_private;
     fsInfo = file->f_inode->i_sb->s_fs_info;
-    DirInodeInfoIterateDentry(dirInfo, NvmfsIterateFunc, context, &fsInfo->acc);
+    DEBUG_PRINT("readdir , dir ino is %ld, contex->pos is %lld", dirInfo->thisIno, context->pos);
+    DirInodeInfoIterateDentry(dirInfo, context->pos, NvmfsIterateFunc, context, &fsInfo->acc);
     return 0;
 }
 
-struct file_operations NvmfsDirFileOps = {.iterate = NvmfsIterate};
-struct file_operations NvmfsRegFileOps = {.read = NvmfsFileRead, .write = NvmfsFileWrite};
+struct file_operations NvmfsDirFileOps = {.open = NvmfsFileOpen, .release = NvmfsFileRelease, .iterate = NvmfsIterate};
+struct file_operations NvmfsRegFileOps = {
+    .open = NvmfsFileOpen, .release = NvmfsFileRelease, .read = NvmfsFileRead, .write = NvmfsFileWrite};
 
 // struct file_operations
 // {

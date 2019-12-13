@@ -134,15 +134,23 @@ int DirInodeInfoRemoveDentry(struct DirInodeInfo * info, nvmfs_ino_t ino, struct
     return 0;
 }
 
-void DirInodeInfoIterateDentry(struct DirInodeInfo * info,
+void DirInodeInfoIterateDentry(struct DirInodeInfo * info, UINT64 index,
                                int (*func)(void * data, UINT8 type, const char * name, UINT32 len, nvmfs_ino_t ino),
                                void * data, struct NVMAccesser * acc)
 {
-    if (func(data, info->baseInfo.type, ".", 2, info->baseInfo.thisIno))
-        return;
-    if (func(data, INODE_TYPE_DIR_FILE, "..", 3, info->baseInfo.parentIno))
-        return;
-    DirFileDentryCacheIterate(&info->cache, func, data, &info->log, acc);
+    switch (index)
+    {
+    case 0:
+        if (func(data, info->baseInfo.type, ".", 2, info->baseInfo.thisIno))
+            return;
+        index++;
+    case 1:
+        if (func(data, INODE_TYPE_DIR_FILE, "..", 3, info->baseInfo.parentIno))
+            return;
+        index++;
+    }
+
+    DirFileDentryCacheIterate(&info->cache, index - 2, func, data, &info->log, acc);
 }
 
 //----------------recovery------------------------
@@ -264,6 +272,7 @@ void DirInodeInfoRebuild(struct DirInodeInfo * info, logic_addr_t addr, struct P
     struct DirInodeRebuildContex context = {.info = info};
 
     info->pool = pool;
+    LogRebuildReadReserveData(addr, &info->baseInfo, sizeof(struct BaseInodeInfo), 0, acc);
     LogRebuildBegin(&info->log, addr, sizeof(struct BaseInodeInfo));
     DirFileDentryCacheInit(&info->cache);
     LogRebuild(&info->log, DirInodeRebuildCleanupOps, &context, acc);

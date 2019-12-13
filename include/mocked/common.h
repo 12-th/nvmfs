@@ -30,4 +30,7 @@ extern void panic(const char * fmt, ...);
 #define spin_lock_uninit(expr)
 #define mutex_uninit(expr)
 
+#include <linux/printk.h>
+#define DEBUG_PRINT(...) printk(KERN_DEBUG "nvmfs: " __VA_ARGS__);
+
 #endif

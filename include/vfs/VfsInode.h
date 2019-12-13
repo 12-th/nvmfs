@@ -19,7 +19,7 @@ struct NvmInode
 extern struct inode_operations NvmfsDirInodeOps;
 extern struct inode_operations NvmfsFileInodeOps;
 
-int VfsInodeRebuild(struct super_block * sb, nvmfs_ino_t ino, struct inode ** inodePtr);
+int VfsInodeRebuild(struct super_block * sb, nvmfs_ino_t ino, struct inode * dirInode, struct inode ** inodePtr);
 
 // struct inode * nvmfs_alloc_inode(struct super_block * pSuperBlock, const struct inode * pDirNode, umode_t mode,
 //                                  dev_t dev);

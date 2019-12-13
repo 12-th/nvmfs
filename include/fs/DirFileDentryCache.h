@@ -51,7 +51,7 @@ int DirFileDentryCacheAppendDentryCheck(struct DirFileDentryCache * cache, nvmfs
 int DirFileDentryCacheJustAppendDentry(struct DirFileDentryCache * cache, nvmfs_ino_t ino, nvmfs_inode_type type,
                                        logic_addr_t nameAddr, UINT32 nameHash, UINT64 nameLen);
 int DirFileDentryCacheRemoveDentry(struct DirFileDentryCache * cache, nvmfs_ino_t ino);
-void DirFileDentryCacheIterate(struct DirFileDentryCache * cache,
+void DirFileDentryCacheIterate(struct DirFileDentryCache * cache, UINT64 index,
                                int (*func)(void * data, UINT8 type, const char * name, UINT32 len, nvmfs_ino_t ino),
                                void * data, struct Log * log, struct NVMAccesser * acc);
 void DirFileDentryCacheDestroy(struct DirFileDentryCache * cache);

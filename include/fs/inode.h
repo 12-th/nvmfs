@@ -24,10 +24,12 @@ struct BaseInodeInfo
     UINT32 linkCount;
     nvmfs_ino_t thisIno;
     nvmfs_ino_t parentIno;
+    mode_t mode;
 };
 
-int RootInodeFormat(struct NvmfsInfo * fsInfo);
-int InodeFormat(struct BaseInodeInfo ** infoPtr, struct NvmfsInfo * fsInfo, UINT8 type, nvmfs_ino_t parentIno);
+int RootInodeFormat(struct NvmfsInfo * fsInfo, mode_t mode);
+int InodeFormat(struct BaseInodeInfo ** infoPtr, struct NvmfsInfo * fsInfo, UINT8 type, nvmfs_ino_t parentIno,
+                mode_t mode);
 void InodeUninit(struct BaseInodeInfo * info, struct NvmfsInfo * fsInfo);
 void InodeRecovery(logic_addr_t inode, struct FsConstructor * ctor, struct CircularBuffer * cb,
                    struct NVMAccesser * acc);

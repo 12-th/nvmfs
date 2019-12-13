@@ -48,7 +48,7 @@ int DirInodeInfoLookupDentryByName(struct DirInodeInfo * info, nvmfs_ino_t * ret
 int DirInodeInfoAddDentry(struct DirInodeInfo * info, nvmfs_ino_t ino, char * name, UINT64 len, UINT8 type,
                           struct NVMAccesser * acc);
 int DirInodeInfoRemoveDentry(struct DirInodeInfo * info, nvmfs_ino_t ino, struct NVMAccesser * acc);
-void DirInodeInfoIterateDentry(struct DirInodeInfo * info,
+void DirInodeInfoIterateDentry(struct DirInodeInfo * info, UINT64 index,
                                int (*func)(void * data, UINT8 type, const char * name, UINT32 len, nvmfs_ino_t ino),
                                void * data, struct NVMAccesser * acc);
 void DirInodeInfoRecovery(logic_addr_t inodeAddr, struct FsConstructor * ctor, struct CircularBuffer * cb,

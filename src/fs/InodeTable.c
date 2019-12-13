@@ -21,7 +21,7 @@ void InodeTableFormat(struct InodeTable * pTable, nvm_addr_t addr, UINT64 size)
         pTable->listTable[i].next = &(pTable->listTable[i + 1]);
     }
     pTable->listTable[maxInodeNum - 1].next = NULL;
-    pTable->head = &pTable->listTable[0];
+    pTable->head = &pTable->listTable[1];
     pTable->tail = &pTable->listTable[maxInodeNum - 1];
 }
 

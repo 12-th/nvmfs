@@ -155,6 +155,7 @@ void FileInodeInfoRebuild(struct FileInodeInfo * info, logic_addr_t inodeAddr, s
 {
     struct FileInodeRebuildContex context = {.info = info};
     FileDataManagerRebuildBegin(&info->manager, ppool, bpool);
+    LogRebuildReadReserveData(inodeAddr, &info->baseInfo, sizeof(struct BaseInodeInfo), 0, acc);
     LogRebuildBegin(&info->log, inodeAddr, sizeof(struct BaseInodeInfo));
     LogRebuild(&info->log, FileInodeRebuildCleanupOps, &context, acc);
     FileDataManagerRebuildEnd(&info->manager);

@@ -26,7 +26,7 @@ struct NvmfsSuperBlock
     UINT64 totalBlockNum;
 };
 
-int NvmfsInfoFormat(struct NvmfsInfo * info);
+int NvmfsInfoFormat(struct NvmfsInfo * info, mode_t rootMode);
 int NvmfsInfoInit(struct NvmfsInfo * info);
 int NvmfsInfoUninit(struct NvmfsInfo * info);
 

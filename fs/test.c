@@ -42,7 +42,7 @@ int main(int argc, char * argv[])
             handle_error("getdents");
 
         if (nread == 0)
-            break;
+            return 0;
 
         printf("--------------- nread=%d ---------------\n", nread);
         printf("i-node        file type  d_reclen  d_off   d_name\n");

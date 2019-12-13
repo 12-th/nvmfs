@@ -1,8 +1,10 @@
 #include "BlockWearTable.h"
 #include "NVMOperations.h"
+#include "common.h"
 
 void BlockWearTableFormat(struct BlockWearTable * pTable, nvm_addr_t addr, UINT64 blockNum)
 {
+    DEBUG_PRINT("block wear table format, start nvm addr is 0x%lx", addr);
     pTable->addr = addr;
     NVMemset(addr, 0, sizeof(UINT32) * blockNum);
 }

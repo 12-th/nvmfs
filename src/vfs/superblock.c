@@ -1,5 +1,6 @@
 #include "FsInfo.h"
 #include "VfsInode.h"
+#include "common.h"
 #include "nvmfs.h"
 #include <linux/init.h>
 #include <linux/parser.h>
@@ -11,6 +12,7 @@ const struct super_operations nvmfsSuperOps;
 
 void NvmfsKillSuperBlock(struct super_block * sb)
 {
+    DEBUG_PRINT("umount ! ! !")
     NvmfsInfoUninit(sb->s_fs_info);
     kfree(sb->s_fs_info);
     kill_litter_super(sb);
@@ -22,11 +24,13 @@ int NvmfsFillSuperBlock(struct super_block * sb, void * options, int silent)
     struct inode * pInode;
     int err;
 
+    DEBUG_PRINT("------------mount-------------")
+
     info = kzalloc(sizeof(struct NvmfsInfo), GFP_KERNEL);
     if (!info)
         return -ENOMEM;
     // NvmfsInfoInit(info);
-    NvmfsInfoFormat(info);
+    NvmfsInfoFormat(info, S_IFDIR);
 
     sb->s_maxbytes = MAX_LFS_FILESIZE;
     sb->s_blocksize = PAGE_SIZE;
@@ -37,14 +41,16 @@ int NvmfsFillSuperBlock(struct super_block * sb, void * options, int silent)
     sb->s_type = &nvmfs;
     sb->s_fs_info = info;
 
-    err = VfsInodeRebuild(sb, 0, &pInode);
+    DEBUG_PRINT("root inode rebuild begin");
+    err = VfsInodeRebuild(sb, 0, NULL, &pInode);
     if (err)
     {
+        DEBUG_PRINT("root inode rebuild err, err is %d", err);
         sb->s_fs_info = NULL;
         kfree(info);
         return err;
     }
-
+    DEBUG_PRINT("root inode rebuild end");
     sb->s_root = d_make_root(pInode);
     if (!(sb->s_root))
     {

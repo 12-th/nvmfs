@@ -3,6 +3,7 @@
 #include "FsConstructor.h"
 #include "FsInfo.h"
 #include "NVMOperations.h"
+#include "common.h"
 #include <linux/slab.h>
 
 int NvmfsInfoInit(struct NvmfsInfo * info)
@@ -22,6 +23,8 @@ int NvmfsInfoInit(struct NvmfsInfo * info)
 static void FsInfoFormat(struct NvmfsInfo * info)
 {
     struct ExtentContainer container;
+
+    NVMInit(FS_NVM_SIZE);
     WearLevelerFormat(&info->wl, FS_NVM_SIZE_BIT, FS_WEARLEVELER_RESERVE_SIZE);
     NVMAccesserInit(&info->acc, &info->wl);
     InodeTableFormat(&info->inodeTable, WearLevelerReserveDataAddrQuery(&info->wl), FS_INODE_TABLE_SIZE);
@@ -33,10 +36,11 @@ static void FsInfoFormat(struct NvmfsInfo * info)
     PagePoolInit(&info->ppool, &info->bpool, info->acc);
 }
 
-int NvmfsInfoFormat(struct NvmfsInfo * info)
+int NvmfsInfoFormat(struct NvmfsInfo * info, mode_t rootMode)
 {
     FsInfoFormat(info);
-    RootInodeFormat(info);
+    RootInodeFormat(info, rootMode);
+    DEBUG_PRINT("format end");
     return 0;
 }
 
@@ -47,5 +51,6 @@ int NvmfsInfoUninit(struct NvmfsInfo * info)
     BlockPoolUninit(&info->bpool);
     NVMAccesserUninit(&info->acc);
     WearLevelerUninit(&info->wl);
+    NVMUninit();
     return 0;
 }

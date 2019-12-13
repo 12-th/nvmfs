@@ -121,7 +121,7 @@ int DirFileDentryCacheRemoveDentry(struct DirFileDentryCache * cache, nvmfs_ino_
     return -EINVAL;
 }
 
-void DirFileDentryCacheIterate(struct DirFileDentryCache * cache,
+void DirFileDentryCacheIterate(struct DirFileDentryCache * cache, UINT64 index,
                                int (*func)(void * data, UINT8 type, const char * name, UINT32 len, nvmfs_ino_t ino),
                                void * data, struct Log * log, struct NVMAccesser * acc)
 {
@@ -129,10 +129,19 @@ void DirFileDentryCacheIterate(struct DirFileDentryCache * cache,
     struct DentryNode * node;
     char * buffer = NULL;
     UINT32 bufferLen = 0;
+    UINT64 num = 0;
+
+    if (index >= cache->dentryNum)
+        return;
 
     hash_for_each(cache->inohash, i, node, inonode)
     {
         int err;
+        if (num < index)
+        {
+            num++;
+            continue;
+        }
         if (!buffer || bufferLen < node->nameLen)
         {
             kfree(buffer);
@@ -146,6 +155,7 @@ void DirFileDentryCacheIterate(struct DirFileDentryCache * cache,
             kfree(buffer);
             return;
         }
+        num++;
     }
     kfree(buffer);
 }

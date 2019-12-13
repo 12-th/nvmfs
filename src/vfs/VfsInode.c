@@ -78,7 +78,7 @@
 // {
 // }
 
-static struct inode * AllocAndInitVfsInode(struct super_block * sb, UINT8 type)
+static struct inode * AllocAndInitVfsInode(struct super_block * sb, UINT8 type, mode_t mode, struct inode * dirInode)
 {
     struct inode * pInode;
 
@@ -90,19 +90,22 @@ static struct inode * AllocAndInitVfsInode(struct super_block * sb, UINT8 type)
     case INODE_TYPE_REGULAR_FILE:
         pInode->i_op = &NvmfsFileInodeOps;
         pInode->i_fop = &NvmfsRegFileOps;
+        mode = (S_IFREG) | (mode & (~S_IFMT));
     case INODE_TYPE_DIR_FILE:
         pInode->i_op = &NvmfsDirInodeOps;
         pInode->i_fop = &NvmfsDirFileOps;
+        mode = S_IFDIR | (mode & (~S_IFMT));
         break;
     case INODE_TYPE_LINK_FILE:
         break;
     }
+    inode_init_owner(pInode, dirInode, mode);
     pInode->i_mapping->a_ops = NULL;
     pInode->i_atime = pInode->i_mtime = pInode->i_ctime = current_time(pInode);
     return pInode;
 }
 
-int VfsInodeRebuild(struct super_block * sb, nvmfs_ino_t ino, struct inode ** inodePtr)
+int VfsInodeRebuild(struct super_block * sb, nvmfs_ino_t ino, struct inode * dirInode, struct inode ** inodePtr)
 {
     struct inode * pInode;
     struct NvmfsInfo * info;
@@ -114,7 +117,7 @@ int VfsInodeRebuild(struct super_block * sb, nvmfs_ino_t ino, struct inode ** in
     if (err)
         return err;
 
-    pInode = AllocAndInitVfsInode(sb, inodeInfo->type);
+    pInode = AllocAndInitVfsInode(sb, inodeInfo->type, inodeInfo->mode, dirInode);
     if (pInode == NULL)
     {
         InodeUninit(inodeInfo, info);
@@ -145,7 +148,7 @@ static UINT8 ModeToType(umode_t mode)
     return -1;
 }
 
-static int VfsInodeCreateImpl(struct inode * dirInode, struct dentry * vfsDentry, UINT8 type)
+static int VfsInodeCreateImpl(struct inode * dirInode, struct dentry * vfsDentry, UINT8 type, umode_t mode)
 {
     struct BaseInodeInfo * inodeInfo;
     struct NvmfsInfo * fsInfo;
@@ -157,8 +160,8 @@ static int VfsInodeCreateImpl(struct inode * dirInode, struct dentry * vfsDentry
     sb = dirInode->i_sb;
     fsInfo = sb->s_fs_info;
     parentIno = ((struct BaseInodeInfo *)(dirInode->i_private))->parentIno;
-    pInode = AllocAndInitVfsInode(sb, type);
-    err = InodeFormat(&inodeInfo, fsInfo, type, parentIno);
+    pInode = AllocAndInitVfsInode(sb, type, mode, dirInode);
+    err = InodeFormat(&inodeInfo, fsInfo, type, parentIno, mode);
     if (err)
     {
         iput(pInode);
@@ -166,7 +169,7 @@ static int VfsInodeCreateImpl(struct inode * dirInode, struct dentry * vfsDentry
     }
 
     err = DirInodeInfoAddDentry(dirInode->i_private, inodeInfo->thisIno, (char *)vfsDentry->d_name.name,
-                                vfsDentry->d_name.len, type, &fsInfo->acc);
+                                vfsDentry->d_name.len + 1, type, &fsInfo->acc);
     if (err)
     {
         InodeDestroy(inodeInfo, fsInfo);
@@ -179,7 +182,8 @@ static int VfsInodeCreateImpl(struct inode * dirInode, struct dentry * vfsDentry
 
 static int VfsInodeCreate(struct inode * dirInode, struct dentry * vfsDentry, umode_t mode, bool excl)
 {
-    return VfsInodeCreateImpl(dirInode, vfsDentry, ModeToType(mode));
+    DEBUG_PRINT("inode create, name is %s, len is %ld\n", vfsDentry->d_name.name, (unsigned long)vfsDentry->d_name.len);
+    return VfsInodeCreateImpl(dirInode, vfsDentry, ModeToType(mode), mode);
 }
 
 static struct dentry * VfsInodeLookup(struct inode * dirInode, struct dentry * dentry, unsigned int flags)
@@ -193,13 +197,16 @@ static struct dentry * VfsInodeLookup(struct inode * dirInode, struct dentry * d
 
     dirInfo = dirInode->i_private;
     fsInfo = dirInode->i_sb->s_fs_info;
-    err = DirInodeInfoLookupDentryByName(dirInfo, &ino, (char *)dentry->d_name.name, dentry->d_name.len, &fsInfo->acc);
+    DEBUG_PRINT("inode lookup, dirInode ino is %ld, name is %s, len is %ld", dirInfo->baseInfo.thisIno,
+                dentry->d_name.name, (unsigned long)dentry->d_name.len);
+    err = DirInodeInfoLookupDentryByName(dirInfo, &ino, (char *)dentry->d_name.name, dentry->d_name.len + 1,
+                                         &fsInfo->acc);
     if (err)
-        return ERR_PTR(-ENOENT);
+        return NULL;
     err = InodeRebuild(&inodeInfo, &fsInfo->inodeTable, ino, &fsInfo->ppool, &fsInfo->bpool, &fsInfo->acc);
     if (err)
         return ERR_PTR(err);
-    pInode = AllocAndInitVfsInode(dirInode->i_sb, inodeInfo->type);
+    pInode = AllocAndInitVfsInode(dirInode->i_sb, inodeInfo->type, 0, dirInode);
     if (!pInode)
     {
         InodeUninit(inodeInfo, fsInfo);
@@ -208,7 +215,7 @@ static struct dentry * VfsInodeLookup(struct inode * dirInode, struct dentry * d
     pInode->i_private = inodeInfo;
 
     d_add(dentry, pInode);
-    return 0;
+    return NULL;
 }
 
 static int VfsInodeRemoveImpl(struct inode * dirInode, struct dentry * dentry)
@@ -220,7 +227,8 @@ static int VfsInodeRemoveImpl(struct inode * dirInode, struct dentry * dentry)
 
     dirInfo = dirInode->i_private;
     fsInfo = dirInode->i_sb->s_fs_info;
-    err = DirInodeInfoLookupDentryByName(dirInfo, &ino, (char *)dentry->d_name.name, dentry->d_name.len, &fsInfo->acc);
+    err = DirInodeInfoLookupDentryByName(dirInfo, &ino, (char *)dentry->d_name.name, dentry->d_name.len + 1,
+                                         &fsInfo->acc);
     if (err)
         return err;
     return DirInodeInfoRemoveDentry(dirInfo, ino, &fsInfo->acc);
@@ -233,7 +241,7 @@ static int VfsInodeUnlink(struct inode * dirInode, struct dentry * dentry)
 
 static int VfsInodeMkdir(struct inode * dirInode, struct dentry * dentry, umode_t mode)
 {
-    return VfsInodeCreateImpl(dirInode, dentry, INODE_TYPE_DIR_FILE);
+    return VfsInodeCreateImpl(dirInode, dentry, INODE_TYPE_DIR_FILE, mode);
 }
 
 static int VfsInodeRmdir(struct inode * dirInode, struct dentry * dentry)

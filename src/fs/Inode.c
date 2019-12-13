@@ -6,16 +6,18 @@
 #include "Log.h"
 #include <linux/slab.h>
 
-static void BaseInodeInfoFormat(struct BaseInodeInfo * baseInfo, UINT8 type, nvmfs_ino_t thisIno, nvmfs_ino_t parentIno)
+static void BaseInodeInfoFormat(struct BaseInodeInfo * baseInfo, UINT8 type, nvmfs_ino_t thisIno, nvmfs_ino_t parentIno,
+                                mode_t mode)
 {
     baseInfo->type = type;
     baseInfo->thisIno = thisIno;
     baseInfo->parentIno = parentIno;
     baseInfo->linkCount = 1;
+    baseInfo->mode = mode;
     // #warning set time
 }
 
-int RootInodeFormat(struct NvmfsInfo * fsInfo)
+int RootInodeFormat(struct NvmfsInfo * fsInfo, mode_t mode)
 {
     struct DirInodeInfo * info;
     logic_addr_t firstArea;
@@ -24,7 +26,7 @@ int RootInodeFormat(struct NvmfsInfo * fsInfo)
     info = kmalloc(sizeof(struct DirInodeInfo), GFP_KERNEL);
     if (!info)
         return -ENOMEM;
-    BaseInodeInfoFormat((struct BaseInodeInfo *)info, INODE_TYPE_DIR_FILE, 0, 0);
+    BaseInodeInfoFormat((struct BaseInodeInfo *)info, INODE_TYPE_DIR_FILE, 0, 0, mode);
     err = DirInodeInfoFormat((struct DirInodeInfo *)info, &fsInfo->ppool, &firstArea, &fsInfo->acc);
     if (err)
     {
@@ -37,7 +39,8 @@ int RootInodeFormat(struct NvmfsInfo * fsInfo)
     return 0;
 }
 
-int InodeFormat(struct BaseInodeInfo ** infoPtr, struct NvmfsInfo * fsInfo, UINT8 type, nvmfs_ino_t parentIno)
+int InodeFormat(struct BaseInodeInfo ** infoPtr, struct NvmfsInfo * fsInfo, UINT8 type, nvmfs_ino_t parentIno,
+                mode_t mode)
 {
     struct BaseInodeInfo * info = NULL;
     int err;
@@ -54,7 +57,7 @@ int InodeFormat(struct BaseInodeInfo ** infoPtr, struct NvmfsInfo * fsInfo, UINT
         info = kmalloc(sizeof(struct FileInodeInfo), GFP_KERNEL);
         if (!info)
             return -ENOMEM;
-        BaseInodeInfoFormat(info, type, ino, parentIno);
+        BaseInodeInfoFormat(info, type, ino, parentIno, mode);
         err =
             FileInodeInfoFormat((struct FileInodeInfo *)info, &fsInfo->ppool, &fsInfo->bpool, &firstArea, &fsInfo->acc);
         if (err)
@@ -67,7 +70,7 @@ int InodeFormat(struct BaseInodeInfo ** infoPtr, struct NvmfsInfo * fsInfo, UINT
         info = kmalloc(sizeof(struct DirInodeInfo), GFP_KERNEL);
         if (!info)
             return -ENOMEM;
-        BaseInodeInfoFormat(info, type, ino, parentIno);
+        BaseInodeInfoFormat(info, type, ino, parentIno, mode);
         err = DirInodeInfoFormat((struct DirInodeInfo *)info, &fsInfo->ppool, &firstArea, &fsInfo->acc);
         if (err)
         {
@@ -144,6 +147,7 @@ int InodeRebuild(struct BaseInodeInfo ** infoPtr, struct InodeTable * pTable, nv
     logic_addr_t inodeAddr;
     void * data = NULL;
 
+    DEBUG_PRINT("inode rebuild, ino is %ld", ino);
     inodeAddr = InodeTableGetInodeAddr(pTable, ino);
     if (inodeAddr == invalid_nvm_addr)
         return -ENOENT;
@@ -165,6 +169,7 @@ int InodeRebuild(struct BaseInodeInfo ** infoPtr, struct InodeTable * pTable, nv
     case INODE_TYPE_LINK_FILE:
         break;
     }
+
     *infoPtr = data;
     return 0;
 }
