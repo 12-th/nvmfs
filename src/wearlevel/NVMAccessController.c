@@ -22,6 +22,11 @@ static inline UINT64 OffsetOfPage(logic_addr_t addr)
     return (addr & ((1UL << 12) - 1));
 }
 
+static inline UINT64 OffsetOfBlock(logic_addr_t addr)
+{
+    return (addr & ((1UL << 21) - 1));
+}
+
 static inline UINT64 BlockEntryPackNVMAddr(nvm_addr_t addr)
 {
     return addr >> 21;
@@ -305,9 +310,7 @@ static inline nvm_addr_t LogicAddressTranslate(struct NVMAccessController * acl,
 {
     struct BlockEntry * be;
     nvm_addr_t physAddr;
-    UINT64 offset;
 
-    offset = OffsetOfPage(addr);
     be = &acl->entries[IndexOfBlock(addr)];
     physAddr = BlockEntryUnpackNVMAddr(be->nvmAddr);
     if (be->fineGrain)
@@ -316,8 +319,9 @@ static inline nvm_addr_t LogicAddressTranslate(struct NVMAccessController * acl,
 
         pe = be->ptr->entries + IndexOfPage(addr);
         physAddr += (pe->relativeIndex << BITS_4K);
+        return physAddr + OffsetOfPage(addr);
     }
-    return physAddr + offset;
+    return physAddr + OffsetOfBlock(addr);
 }
 
 void NVMAccessControllerSharedLock(struct NVMAccessController * acl, logic_addr_t addr)

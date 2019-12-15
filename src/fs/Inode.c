@@ -26,16 +26,6 @@ struct BaseInodeInfo * InodeInfoAlloc(UINT8 type)
     return info;
 }
 
-void BaseInodeInfoFormat(struct BaseInodeInfo * baseInfo, nvmfs_ino_t parentIno, mode_t mode, struct timespec curTime)
-{
-    baseInfo->parentIno = parentIno;
-    baseInfo->linkCount = 1;
-    baseInfo->mode = mode;
-    baseInfo->atime = curTime;
-    baseInfo->ctime = curTime;
-    baseInfo->mtime = curTime;
-}
-
 void InodeInfoFree(struct BaseInodeInfo * info)
 {
     kfree(info);
@@ -66,11 +56,11 @@ int RootInodeFormat(struct BaseInodeInfo * info, struct NvmfsInfo * fsInfo)
     nvmfs_ino_t ino = 0;
     logic_addr_t firstArea;
 
+    info->thisIno = ino;
     err = InodeFormatImpl(info, fsInfo, &firstArea);
     if (err)
         return err;
 
-    info->thisIno = ino;
     InodeTableUpdateInodeAddr(&fsInfo->inodeTable, ino, firstArea);
     return 0;
 }
@@ -84,6 +74,8 @@ int InodeFormat(struct BaseInodeInfo * info, struct NvmfsInfo * fsInfo)
     ino = InodeTableGetIno(&fsInfo->inodeTable);
     if (ino == invalid_nvmfs_ino)
         return -ENOSPC;
+
+    info->thisIno = ino;
     err = InodeFormatImpl(info, fsInfo, &firstArea);
     if (err)
     {
@@ -91,7 +83,6 @@ int InodeFormat(struct BaseInodeInfo * info, struct NvmfsInfo * fsInfo)
         return err;
     }
 
-    info->thisIno = ino;
     InodeTableUpdateInodeAddr(&fsInfo->inodeTable, ino, firstArea);
     return 0;
 }
@@ -176,6 +167,38 @@ int InodeRebuild(struct BaseInodeInfo ** infoPtr, struct InodeTable * pTable, nv
     }
 
     *infoPtr = info;
+    return 0;
+}
+
+UINT64 InodeInfoGetPageNum(struct BaseInodeInfo * info)
+{
+    switch (info->type)
+    {
+    case INODE_TYPE_REGULAR_FILE:
+        return FileInodeInfoGetPageNum((struct FileInodeInfo *)info);
+        break;
+    case INODE_TYPE_DIR_FILE:
+        return DirInodeInfoGetPageNum((struct DirInodeInfo *)info);
+        break;
+    case INODE_TYPE_LINK_FILE:
+        break;
+    }
+    return 0;
+}
+
+UINT64 InodeInfoGetSize(struct BaseInodeInfo * info)
+{
+    switch (info->type)
+    {
+    case INODE_TYPE_REGULAR_FILE:
+        return FileInodeInfoGetMaxLen((struct FileInodeInfo *)info);
+        break;
+    case INODE_TYPE_DIR_FILE:
+        return DirInodeInfoGetPageNum((struct DirInodeInfo *)info) * PAGE_SIZE;
+        break;
+    case INODE_TYPE_LINK_FILE:
+        break;
+    }
     return 0;
 }
 

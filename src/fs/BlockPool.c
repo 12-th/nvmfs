@@ -1,7 +1,7 @@
 #include "BlockPool.h"
 #include <linux/slab.h>
 
-#define MAX_CACHE_BLOCK_NUM 1024
+#define MAX_CACHE_BLOCK_NUM 5
 
 void BlockPoolInit(struct BlockPool * pool)
 {

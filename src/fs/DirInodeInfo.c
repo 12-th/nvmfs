@@ -78,12 +78,12 @@ int DirInodeInfoLookupDentryByName(struct DirInodeInfo * info, nvmfs_ino_t * ret
 
     if (strcmp(name, ".") == 0)
     {
-        *retIno = info->thisIno;
+        *retIno = info->baseInfo.thisIno;
         return 0;
     }
     if (strcmp(name, "..") == 0)
     {
-        *retIno = info->parentIno;
+        *retIno = info->baseInfo.parentIno;
         return 0;
     }
     nameHash = DJBHash(name, nameLen);

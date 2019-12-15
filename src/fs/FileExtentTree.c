@@ -1,5 +1,6 @@
 #include "FileExtentTree.h"
 #include "Types.h"
+#include "common.h"
 #include <linux/slab.h>
 
 void FileExtentTreeInit(struct FileExtentTree * tree)
@@ -341,6 +342,7 @@ void FileExtentTreeRead(struct FileExtentTree * tree, UINT64 start, UINT64 end, 
             memset(buffer + (readStart - start), 0, readStart - lastRead);
         }
 
+        DEBUG_PRINT("file read hit, curCanReadStart is 0x%lx, curCanReadEnd is 0x%lx", curCanReadStart, curCanReadEnd);
         NVMAccesserRead(acc, curCanReadStart, curCanReadEnd - curCanReadStart, buffer + (readStart - start));
         lastRead = readStart + (curCanReadEnd - curCanReadStart);
 

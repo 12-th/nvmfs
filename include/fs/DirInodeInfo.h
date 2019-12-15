@@ -32,8 +32,6 @@ struct DirInodeInfo
     struct PagePool * pool;
     struct DirFileDentryCache cache;
     struct Log log;
-    nvmfs_ino_t thisIno;
-    nvmfs_ino_t parentIno;
 };
 
 int DirInodeInfoFormat(struct DirInodeInfo * info, struct PagePool * ppool, logic_addr_t * firstArea,
@@ -55,5 +53,10 @@ void DirInodeInfoRecovery(logic_addr_t inodeAddr, struct FsConstructor * ctor, s
                           struct NVMAccesser * acc);
 void DirInodeInfoRebuild(struct DirInodeInfo * info, logic_addr_t addr, struct PagePool * pool,
                          struct NVMAccesser * acc);
+
+static inline UINT64 DirInodeInfoGetPageNum(struct DirInodeInfo * info)
+{
+    return LogTotalSizeQuery(&info->log) / SIZE_4K;
+}
 
 #endif

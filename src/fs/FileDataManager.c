@@ -305,12 +305,12 @@ int FileDataManagerMergeData(struct FileDataManager * manager, struct Log * log,
     return err;
 }
 
-INT64 FileDataManagerReadData(struct FileDataManager * manager, void * buffer, UINT64 size, UINT64 fileStart,
-                              struct NVMAccesser * acc)
+int FileDataManagerReadData(struct FileDataManager * manager, void * buffer, UINT64 size, UINT64 fileStart,
+                            struct NVMAccesser * acc)
 {
     UINT64 end;
-    if (fileStart > manager->fileMaxLen)
-        return -1;
+    if (fileStart >= manager->fileMaxLen)
+        return 0;
     end = fileStart + size;
     if (end > manager->fileMaxLen)
         end = manager->fileMaxLen;

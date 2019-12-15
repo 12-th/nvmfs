@@ -16,6 +16,8 @@ int FileInodeInfoFormat(struct FileInodeInfo * info, struct PagePool * ppool, st
         return err;
     FileDataManagerInit(&info->manager, bpool, ppool);
     LogWriteReserveData(&info->log, sizeof(struct BaseInodeInfo), 0, &info->baseInfo, acc);
+    DEBUG_PRINT("file inode format, thisIno is %ld, parentIno is 0x%ld", (unsigned long)info->baseInfo.thisIno,
+                (unsigned long)info->baseInfo.parentIno);
     *firstArea = LogFirstArea(&info->log);
     return 0;
 }
@@ -36,8 +38,8 @@ static void MergeFileInodeData(struct FileInodeInfo * info, struct NVMAccesser *
 {
 }
 
-INT64 FileInodeInfoReadData(struct FileInodeInfo * info, void * buffer, UINT64 size, UINT64 fileStart,
-                            struct NVMAccesser * acc)
+int FileInodeInfoReadData(struct FileInodeInfo * info, void * buffer, UINT64 size, UINT64 fileStart,
+                          struct NVMAccesser * acc)
 {
     MergeFileInodeData(info, acc);
     return FileDataManagerReadData(&info->manager, buffer, size, fileStart, acc);
