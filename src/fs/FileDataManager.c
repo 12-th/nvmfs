@@ -3,6 +3,7 @@
 #include "FileDataManager.h"
 #include "FileInodeInfo.h"
 #include "Log.h"
+#include "common.h"
 #include <linux/slab.h>
 
 struct FileDataSpace
@@ -120,7 +121,6 @@ static int FileDataManagerWriteDataSmall(struct FileDataManager * manager, void 
         fileStart += restSize;
         buffer += restSize;
     }
-
     AddNewSpace(manager, page, SIZE_4K, log, acc);
     WriteDataToArea(manager, buffer, size, fileStart, log, acc);
     return 0;
@@ -325,6 +325,9 @@ void FileDataManagerRebuildBegin(struct FileDataManager * manager, struct PagePo
     FileExtentTreeInit(&manager->tree);
     manager->lastUsedPage = invalid_nvm_addr;
     manager->fileMaxLen = 0;
+    manager->curArea = invalid_nvm_addr;
+    manager->curWriteStart = invalid_nvm_addr;
+    manager->curSize = 0;
 }
 
 void FileDataManagerRebuildAddSpace(struct FileDataManager * manager, logic_addr_t addr, UINT64 size)
@@ -347,7 +350,8 @@ void FileDataManagerRebuildAddExtent(struct FileDataManager * manager, logic_add
 
 void FileDataManagerRebuildEnd(struct FileDataManager * manager)
 {
-    if (!(manager->curWriteStart >= manager->curArea && manager->curWriteStart < (manager->curArea + manager->curSize)))
+    if (!(manager->curWriteStart >= manager->curArea &&
+          manager->curWriteStart <= (manager->curArea + manager->curSize)))
     {
         // add new space and crashed
         manager->curWriteStart = manager->curArea;
@@ -369,4 +373,11 @@ int FileDataManagerIsSame(struct FileDataManager * manager1, struct FileDataMana
     if (manager1->lastUsedPage != manager2->lastUsedPage)
         return 0;
     return FileExtentTreeIsSame(&manager1->tree, &manager2->tree);
+}
+
+void FileDataManagerPrintInfo(struct FileDataManager * manager)
+{
+    DEBUG_PRINT("file data manager curArea is 0x%lx, curWriteStart is 0x%lx, curSize is 0x%lx, last used page is 0x%lx",
+                manager->curArea, manager->curWriteStart, manager->curSize, manager->lastUsedPage);
+    FileExtentTreePrintInfo(&manager->tree);
 }

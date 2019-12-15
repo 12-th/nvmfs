@@ -22,15 +22,10 @@ int NvmfsFillSuperBlock(struct super_block * sb, void * options, int silent)
 {
     struct NvmfsInfo * info;
     struct inode * pInode;
+    struct dentry * pDentry;
     int err;
 
     DEBUG_PRINT("------------mount-------------")
-
-    info = kzalloc(sizeof(struct NvmfsInfo), GFP_KERNEL);
-    if (!info)
-        return -ENOMEM;
-    // NvmfsInfoInit(info);
-    NvmfsInfoFormat(info, S_IFDIR);
 
     sb->s_maxbytes = MAX_LFS_FILESIZE;
     sb->s_blocksize = PAGE_SIZE;
@@ -39,26 +34,21 @@ int NvmfsFillSuperBlock(struct super_block * sb, void * options, int silent)
     sb->s_op = &nvmfsSuperOps;
     sb->s_time_gran = 1;
     sb->s_type = &nvmfs;
-    sb->s_fs_info = info;
 
-    DEBUG_PRINT("root inode rebuild begin");
-    err = VfsInodeRebuild(sb, 0, NULL, &pInode);
+    info = kzalloc(sizeof(struct NvmfsInfo), GFP_KERNEL);
+    if (!info)
+        return -ENOMEM;
+    NvmfsInfoFormat(info, S_IFDIR);
+    sb->s_fs_info = info;
+    err = VfsRootInodeFormat(sb, &pInode, &pDentry);
     if (err)
-    {
-        DEBUG_PRINT("root inode rebuild err, err is %d", err);
-        sb->s_fs_info = NULL;
-        kfree(info);
-        return err;
-    }
-    DEBUG_PRINT("root inode rebuild end");
-    sb->s_root = d_make_root(pInode);
-    if (!(sb->s_root))
     {
         sb->s_fs_info = NULL;
         kfree(info);
         iput(pInode);
         return -ENOMEM;
     }
+    sb->s_root = pDentry;
 
     return 0;
 }

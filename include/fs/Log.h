@@ -90,4 +90,6 @@ static inline int LogIsSame(struct Log * log1, struct Log * log2)
            ContinousSpaceIsSame(&log1->cs, &log2->cs);
 }
 
+void LogPrintInfo(struct Log * log);
+
 #endif

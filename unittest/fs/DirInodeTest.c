@@ -1,6 +1,7 @@
 #include "BlockPool.h"
 #include "DirInodeInfo.h"
 #include "Inode.h"
+#include "InodeType.h"
 #include "NVMOperations.h"
 #include "PagePool.h"
 #include "WearLeveler.h"

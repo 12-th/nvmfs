@@ -3,46 +3,80 @@
 #include "FsInfo.h"
 #include "Inode.h"
 #include "InodeTable.h"
+#include "InodeType.h"
 #include "Log.h"
+#include "common.h"
 #include <linux/slab.h>
 
-static void BaseInodeInfoFormat(struct BaseInodeInfo * baseInfo, UINT8 type, nvmfs_ino_t thisIno, nvmfs_ino_t parentIno,
-                                mode_t mode)
+struct BaseInodeInfo * InodeInfoAlloc(UINT8 type)
 {
-    baseInfo->type = type;
-    baseInfo->thisIno = thisIno;
+    struct BaseInodeInfo * info = NULL;
+    switch (type)
+    {
+    case INODE_TYPE_REGULAR_FILE:
+        info = kmalloc(sizeof(struct FileInodeInfo), GFP_KERNEL);
+        break;
+    case INODE_TYPE_DIR_FILE:
+        info = kmalloc(sizeof(struct DirInodeInfo), GFP_KERNEL);
+        break;
+    case INODE_TYPE_LINK_FILE:
+        break;
+    }
+    info->type = type;
+    return info;
+}
+
+void BaseInodeInfoFormat(struct BaseInodeInfo * baseInfo, nvmfs_ino_t parentIno, mode_t mode, struct timespec curTime)
+{
     baseInfo->parentIno = parentIno;
     baseInfo->linkCount = 1;
     baseInfo->mode = mode;
-    // #warning set time
+    baseInfo->atime = curTime;
+    baseInfo->ctime = curTime;
+    baseInfo->mtime = curTime;
 }
 
-int RootInodeFormat(struct NvmfsInfo * fsInfo, mode_t mode)
+void InodeInfoFree(struct BaseInodeInfo * info)
 {
-    struct DirInodeInfo * info;
-    logic_addr_t firstArea;
-    int err;
-
-    info = kmalloc(sizeof(struct DirInodeInfo), GFP_KERNEL);
-    if (!info)
-        return -ENOMEM;
-    BaseInodeInfoFormat((struct BaseInodeInfo *)info, INODE_TYPE_DIR_FILE, 0, 0, mode);
-    err = DirInodeInfoFormat((struct DirInodeInfo *)info, &fsInfo->ppool, &firstArea, &fsInfo->acc);
-    if (err)
-    {
-        kfree(info);
-        return err;
-    }
-    InodeTableUpdateInodeAddr(&fsInfo->inodeTable, 0, firstArea);
-    DirInodeInfoUninit(info);
     kfree(info);
+}
+
+static int InodeFormatImpl(struct BaseInodeInfo * info, struct NvmfsInfo * fsInfo, logic_addr_t * firstArea)
+{
+    int err = 0;
+
+    switch (info->type)
+    {
+    case INODE_TYPE_REGULAR_FILE:
+        err =
+            FileInodeInfoFormat((struct FileInodeInfo *)info, &fsInfo->ppool, &fsInfo->bpool, firstArea, &fsInfo->acc);
+        break;
+    case INODE_TYPE_DIR_FILE:
+        err = DirInodeInfoFormat((struct DirInodeInfo *)info, &fsInfo->ppool, firstArea, &fsInfo->acc);
+        break;
+    case INODE_TYPE_LINK_FILE:
+        break;
+    }
+    return err;
+}
+
+int RootInodeFormat(struct BaseInodeInfo * info, struct NvmfsInfo * fsInfo)
+{
+    int err;
+    nvmfs_ino_t ino = 0;
+    logic_addr_t firstArea;
+
+    err = InodeFormatImpl(info, fsInfo, &firstArea);
+    if (err)
+        return err;
+
+    info->thisIno = ino;
+    InodeTableUpdateInodeAddr(&fsInfo->inodeTable, ino, firstArea);
     return 0;
 }
 
-int InodeFormat(struct BaseInodeInfo ** infoPtr, struct NvmfsInfo * fsInfo, UINT8 type, nvmfs_ino_t parentIno,
-                mode_t mode)
+int InodeFormat(struct BaseInodeInfo * info, struct NvmfsInfo * fsInfo)
 {
-    struct BaseInodeInfo * info = NULL;
     int err;
     nvmfs_ino_t ino;
     logic_addr_t firstArea;
@@ -50,40 +84,15 @@ int InodeFormat(struct BaseInodeInfo ** infoPtr, struct NvmfsInfo * fsInfo, UINT
     ino = InodeTableGetIno(&fsInfo->inodeTable);
     if (ino == invalid_nvmfs_ino)
         return -ENOSPC;
-
-    switch (type)
+    err = InodeFormatImpl(info, fsInfo, &firstArea);
+    if (err)
     {
-    case INODE_TYPE_REGULAR_FILE:
-        info = kmalloc(sizeof(struct FileInodeInfo), GFP_KERNEL);
-        if (!info)
-            return -ENOMEM;
-        BaseInodeInfoFormat(info, type, ino, parentIno, mode);
-        err =
-            FileInodeInfoFormat((struct FileInodeInfo *)info, &fsInfo->ppool, &fsInfo->bpool, &firstArea, &fsInfo->acc);
-        if (err)
-        {
-            kfree(info);
-            return err;
-        }
-        break;
-    case INODE_TYPE_DIR_FILE:
-        info = kmalloc(sizeof(struct DirInodeInfo), GFP_KERNEL);
-        if (!info)
-            return -ENOMEM;
-        BaseInodeInfoFormat(info, type, ino, parentIno, mode);
-        err = DirInodeInfoFormat((struct DirInodeInfo *)info, &fsInfo->ppool, &firstArea, &fsInfo->acc);
-        if (err)
-        {
-            kfree(info);
-            return err;
-        }
-        break;
-    case INODE_TYPE_LINK_FILE:
-        break;
+        InodeTablePutIno(&fsInfo->inodeTable, ino);
+        return err;
     }
 
+    info->thisIno = ino;
     InodeTableUpdateInodeAddr(&fsInfo->inodeTable, ino, firstArea);
-    *infoPtr = info;
     return 0;
 }
 
@@ -145,31 +154,32 @@ int InodeRebuild(struct BaseInodeInfo ** infoPtr, struct InodeTable * pTable, nv
 {
     UINT8 type;
     logic_addr_t inodeAddr;
-    void * data = NULL;
+    struct BaseInodeInfo * info;
 
-    DEBUG_PRINT("inode rebuild, ino is %ld", ino);
     inodeAddr = InodeTableGetInodeAddr(pTable, ino);
     if (inodeAddr == invalid_nvm_addr)
         return -ENOENT;
     LogRebuildReadReserveData(inodeAddr, &type, sizeof(type), offsetof(struct BaseInodeInfo, type), acc);
+    info = InodeInfoAlloc(type);
+    if (!info)
+        return -ENOMEM;
     switch (type)
     {
     case INODE_TYPE_REGULAR_FILE:
-        data = kmalloc(sizeof(struct FileInodeInfo), GFP_KERNEL);
-        if (!data)
-            return -ENOMEM;
-        FileInodeInfoRebuild((struct FileInodeInfo *)data, inodeAddr, ppool, bpool, acc);
+        FileInodeInfoRebuild((struct FileInodeInfo *)info, inodeAddr, ppool, bpool, acc);
         break;
     case INODE_TYPE_DIR_FILE:
-        data = kmalloc(sizeof(struct DirInodeInfo), GFP_KERNEL);
-        if (!data)
-            return -ENOMEM;
-        DirInodeInfoRebuild((struct DirInodeInfo *)data, inodeAddr, ppool, acc);
+        DirInodeInfoRebuild((struct DirInodeInfo *)info, inodeAddr, ppool, acc);
         break;
     case INODE_TYPE_LINK_FILE:
         break;
     }
 
-    *infoPtr = data;
+    *infoPtr = info;
     return 0;
+}
+
+void BaseInodeInfoPrint(struct BaseInodeInfo * info)
+{
+    DEBUG_PRINT("ino is %ld, parent ino is %ld, type is %d", info->thisIno, info->parentIno, info->type);
 }

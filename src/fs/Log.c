@@ -212,3 +212,9 @@ void LogRebuildEnd(struct Log * log, struct NVMAccesser * acc)
 {
     ContinousSpaceRebuildEnd(&log->cs, log->writeStart, acc);
 }
+
+void LogPrintInfo(struct Log * log)
+{
+    DEBUG_PRINT("log reserveSize is 0x%lx, writeStart is 0x%lx, areaNum is %ld, restSize is %ld", log->reserveSize,
+                log->writeStart, log->cs.areaNum, log->cs.restSize);
+}

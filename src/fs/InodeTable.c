@@ -75,7 +75,7 @@ void InodeTableRecoveryEnd(struct InodeTable * pTable)
 {
     UINT64 i;
 
-    for (i = 0; i < pTable->maxInodeNum; ++i)
+    for (i = 1; i < pTable->maxInodeNum; ++i)
     {
         if (pTable->listTable[i].inode == -1)
         {

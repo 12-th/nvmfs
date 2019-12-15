@@ -235,3 +235,115 @@ TEST(FileInodeTest, rebuildTest)
     FileInodeInfoUninit(&rebuildInfo);
     FileInodeTestVariableUninit();
 }
+
+TEST(FileInodeTest, rebuildTest2)
+{
+    FileInodeTestVariableDefine();
+    struct FileInodeInfo rebuildInfo;
+    UINT32 * buffer;
+    UINT32 * paddingData;
+    UINT64 i;
+    UINT32 MAGIC_NUMBER = 0xabcdef00;
+    logic_addr_t firstAreaAddr;
+
+    FileInodeTestVariableInit();
+    FileInodeInfoFormat(&info, &ppool, &bpool, &firstArea, &acc);
+    firstAreaAddr = LogFirstArea(&info.log);
+    buffer = (UINT32 *)__get_free_pages(GFP_KERNEL, 1);
+    paddingData = __get_free_page(GFP_KERNEL);
+    for (i = 0; i < PAGE_SIZE / sizeof(UINT32); ++i)
+    {
+        paddingData[i] = MAGIC_NUMBER;
+    }
+
+    FileInodeInfoRebuild(&rebuildInfo, firstAreaAddr, &ppool, &bpool, &acc);
+    FileInodeInfoWriteData(&rebuildInfo, paddingData, 5, 0, &acc);
+    FileInodeInfoWriteData(&rebuildInfo, paddingData, 15, 0, &acc);
+    FileInodeInfoWriteData(&rebuildInfo, paddingData, 10, 0, &acc);
+    FileInodeInfoReadData(&rebuildInfo, buffer, 15, 0, &acc);
+    ExpectBufferIs(buffer, 0, 15, MAGIC_NUMBER);
+
+    free_page((unsigned long)paddingData);
+    free_pages((unsigned long)buffer, 1);
+    FileInodeInfoUninit(&info);
+    FileInodeInfoUninit(&rebuildInfo);
+    FileInodeTestVariableUninit();
+}
+
+TEST(FileInodeTest, rebuildTest3)
+{
+    FileInodeTestVariableDefine();
+    struct FileInodeInfo rebuildInfo;
+    UINT32 * buffer;
+    UINT32 * paddingData;
+    UINT64 i;
+    UINT32 MAGIC_NUMBER = 0xabcdef00;
+    logic_addr_t firstAreaAddr;
+
+    FileInodeTestVariableInit();
+    FileInodeInfoFormat(&info, &ppool, &bpool, &firstArea, &acc);
+    firstAreaAddr = LogFirstArea(&info.log);
+    buffer = (UINT32 *)__get_free_pages(GFP_KERNEL, 1);
+    paddingData = __get_free_page(GFP_KERNEL);
+    for (i = 0; i < PAGE_SIZE / sizeof(UINT32); ++i)
+    {
+        paddingData[i] = MAGIC_NUMBER;
+    }
+
+    FileInodeInfoRebuild(&rebuildInfo, firstAreaAddr, &ppool, &bpool, &acc);
+    FileInodeInfoWriteData(&rebuildInfo, paddingData, 4096, 0, &acc);
+    FileInodeInfoWriteData(&rebuildInfo, paddingData, 4096, 4096, &acc);
+    FileInodeInfoReadData(&rebuildInfo, buffer, 8192, 0, &acc);
+    ExpectBufferIs(buffer, 0, 8192, MAGIC_NUMBER);
+
+    free_page((unsigned long)paddingData);
+    free_pages((unsigned long)buffer, 1);
+    FileInodeInfoUninit(&info);
+    FileInodeInfoUninit(&rebuildInfo);
+    FileInodeTestVariableUninit();
+}
+
+TEST(FileInodeTest, rebuildTest4)
+{
+    FileInodeTestVariableDefine();
+    struct FileInodeInfo rebuildInfo;
+    UINT32 * buffer;
+    UINT32 * paddingData;
+    UINT64 i;
+    UINT32 MAGIC_NUMBER = 0xabcdef00;
+    logic_addr_t firstAreaAddr;
+
+    FileInodeTestVariableInit();
+    FileInodeInfoFormat(&info, &ppool, &bpool, &firstArea, &acc);
+    firstAreaAddr = LogFirstArea(&info.log);
+    buffer = (UINT32 *)__get_free_pages(GFP_KERNEL, 3);
+    paddingData = __get_free_page(GFP_KERNEL);
+    for (i = 0; i < PAGE_SIZE / sizeof(UINT32); ++i)
+    {
+        paddingData[i] = MAGIC_NUMBER;
+    }
+
+    FileInodeInfoRebuild(&rebuildInfo, firstAreaAddr, &ppool, &bpool, &acc);
+    FileInodeInfoWriteData(&rebuildInfo, paddingData, 4096, 0, &acc);
+    FileInodeInfoWriteData(&rebuildInfo, paddingData, 4096, 4096, &acc);
+    FileInodeInfoReadData(&rebuildInfo, buffer, 8192, 0, &acc);
+    ExpectBufferIs(buffer, 0, 8192, MAGIC_NUMBER);
+    FileInodeInfoUninit(&rebuildInfo);
+
+    FileInodeInfoRebuild(&rebuildInfo, firstAreaAddr, &ppool, &bpool, &acc);
+    FileInodePrintInfo(&rebuildInfo);
+    FileInodeInfoWriteData(&rebuildInfo, paddingData, 4096, 0, &acc);
+    FileInodePrintInfo(&rebuildInfo);
+    FileInodeInfoWriteData(&rebuildInfo, paddingData, 4096, 4096, &acc);
+    FileInodePrintInfo(&rebuildInfo);
+    FileInodeInfoWriteData(&rebuildInfo, paddingData, 4096, 4096 * 2, &acc);
+    FileInodeInfoWriteData(&rebuildInfo, paddingData, 4096, 4096 * 3, &acc);
+    FileInodeInfoWriteData(&rebuildInfo, paddingData, 4096, 4096 * 4, &acc);
+    FileInodeInfoReadData(&rebuildInfo, buffer, 4096 * 5, 0, &acc);
+    ExpectBufferIs(buffer, 0, 4096 * 5, MAGIC_NUMBER);
+
+    free_page((unsigned long)paddingData);
+    free_pages((unsigned long)buffer, 1);
+    FileInodeInfoUninit(&info);
+    FileInodeTestVariableUninit();
+}

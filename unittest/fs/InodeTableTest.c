@@ -28,15 +28,15 @@ TEST(InodeTableTest, rebuildTest)
     logic_addr_t inodeAddr = 0;
     logic_addr_t gotAddr;
     int hasNotified;
-    InodeTableFormat(&table, 0, 16);
+    InodeTableFormat(&table, 0, 24);
     ino = InodeTableGetIno(&table);
-    EXPECT_EQ(ino, 0);
+    EXPECT_EQ(ino, 1);
     InodeTableUpdateInodeAddr(&table, ino, inodeAddr);
     gotAddr = InodeTableGetInodeAddr(&table, ino);
     EXPECT_EQ(inodeAddr, gotAddr);
     InodeTableUninit(&table);
 
-    InodeTableRecoveryPreinit(&table1, 0, 16);
+    InodeTableRecoveryPreinit(&table1, 0, 24);
     InodeTableRecoveryNotifyInodeInuse(&table1, ino, &hasNotified);
     EXPECT_EQ(hasNotified, 0);
     InodeTableRecoveryNotifyInodeInuse(&table1, ino, &hasNotified);
@@ -45,7 +45,7 @@ TEST(InodeTableTest, rebuildTest)
     gotAddr = InodeTableGetInodeAddr(&table1, ino);
     EXPECT_EQ(gotAddr, inodeAddr);
     ino = InodeTableGetIno(&table1);
-    EXPECT_EQ(ino, 1);
+    EXPECT_EQ(ino, 2);
     ino = InodeTableGetIno(&table1);
     EXPECT_EQ(ino, invalid_nvmfs_ino);
     InodeTableUninit(&table1);

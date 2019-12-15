@@ -9,7 +9,7 @@ struct FileSpaceNode
     logic_addr_t start;
     UINT64 size;
     struct rb_node node;
-    struct rb_root unmapRoot;
+    // struct rb_root unmapRoot;
 };
 
 struct FileExtentNode
@@ -39,6 +39,7 @@ UINT64 FileExtentTreeGetEffectiveSize(struct FileExtentTree * tree);
 UINT64 FileExtentTreeGetSpaceSize(struct FileExtentTree * tree);
 void FileExtentTreeUninit(struct FileExtentTree * tree);
 int FileExtentTreeIsSame(struct FileExtentTree * tree1, struct FileExtentTree * tree2);
+void FileExtentTreePrintInfo(struct FileExtentTree * tree);
 
 #define for_each_extent_in_file_extent_tree(extent, tree, node)                                                        \
     for (node = rb_first(&(tree)->fileExtentRoot),                                                                     \
@@ -51,5 +52,4 @@ int FileExtentTreeIsSame(struct FileExtentTree * tree1, struct FileExtentTree * 
         space = curNode ? container_of(curNode, struct FileSpaceNode, node) : NULL;                                    \
          space != NULL;                                                                                                \
          curNode = rb_next(curNode), space = curNode ? container_of(curNode, struct FileSpaceNode, node) : NULL)
-
 #endif

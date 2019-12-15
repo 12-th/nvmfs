@@ -54,4 +54,17 @@
 
 #define WARN(expr, msg) ASSERT(!(expr), msg)
 
+#include <stdio.h>
+#ifndef DEBUG_PRINT
+#define DEBUG_PRINT(...)                                                                                               \
+    ({                                                                                                                 \
+        printf(__VA_ARGS__);                                                                                           \
+        printf("\n");                                                                                                  \
+    })
+#endif
+
+#include <stdlib.h>
+typedef unsigned int umode_t;
+// typedef int mode_t;
+
 #endif

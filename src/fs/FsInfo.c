@@ -39,8 +39,6 @@ static void FsInfoFormat(struct NvmfsInfo * info)
 int NvmfsInfoFormat(struct NvmfsInfo * info, mode_t rootMode)
 {
     FsInfoFormat(info);
-    RootInodeFormat(info, rootMode);
-    DEBUG_PRINT("format end");
     return 0;
 }
 

@@ -1,5 +1,6 @@
 #include "DirInodeInfo.h"
 #include "Inode.h"
+#include "InodeType.h"
 
 static unsigned int DJBHash(char * str, int len)
 {

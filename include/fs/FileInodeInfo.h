@@ -42,5 +42,6 @@ void FileInodeInfoRebuild(struct FileInodeInfo * info, logic_addr_t inodeAddr, s
                           struct BlockPool * bpool, struct NVMAccesser * acc);
 
 int FileInodeIsInfoSame(struct FileInodeInfo * info1, struct FileInodeInfo * info2);
+void FileInodePrintInfo(struct FileInodeInfo * info);
 
 #endif

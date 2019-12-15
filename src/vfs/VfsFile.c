@@ -2,6 +2,7 @@
 #include "File.h"
 #include "FileInodeInfo.h"
 #include "FsInfo.h"
+#include "InodeType.h"
 #include "common.h"
 #include <linux/fs.h>
 
@@ -47,20 +48,11 @@ static ssize_t NvmfsFileWrite(struct file * file, const char __user * buffer, si
         return writeSize;
     (*offset) += writeSize;
     return writeSize;
-}
 
-static UINT8 TypeToVfsType(UINT8 type)
-{
-    switch (type)
-    {
-    case INODE_TYPE_REGULAR_FILE:
-        return DT_REG;
-    case INODE_TYPE_DIR_FILE:
-        return DT_DIR;
-    case INODE_TYPE_LINK_FILE:
-        return DT_LNK;
-    }
-    return DT_UNKNOWN;
+    // struct FileInodeInfo * inodeInfo;
+    // inodeInfo = file->f_inode->i_private;
+    // FileInodePrintInfo(inodeInfo);
+    // return size;
 }
 
 static int NvmfsIterateFunc(void * data, UINT8 type, const char * name, UINT32 len, nvmfs_ino_t ino)
@@ -69,7 +61,7 @@ static int NvmfsIterateFunc(void * data, UINT8 type, const char * name, UINT32 l
     int err;
 
     context = data;
-    err = dir_emit(context, name, len, ino, TypeToVfsType(type));
+    err = dir_emit(context, name, len, ino, TypeToVfsDentryType(type));
     context->pos++;
     return !err;
 }

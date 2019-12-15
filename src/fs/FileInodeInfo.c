@@ -3,6 +3,7 @@
 #include "FsConstructor.h"
 #include "Inode.h"
 #include "PagePool.h"
+#include "common.h"
 #include <linux/slab.h>
 
 int FileInodeInfoFormat(struct FileInodeInfo * info, struct PagePool * ppool, struct BlockPool * bpool,
@@ -165,4 +166,11 @@ void FileInodeInfoRebuild(struct FileInodeInfo * info, logic_addr_t inodeAddr, s
 int FileInodeIsInfoSame(struct FileInodeInfo * info1, struct FileInodeInfo * info2)
 {
     return LogIsSame(&info1->log, &info2->log) && FileDataManagerIsSame(&info1->manager, &info2->manager);
+}
+
+void FileInodePrintInfo(struct FileInodeInfo * info)
+{
+    BaseInodeInfoPrint(&info->baseInfo);
+    LogPrintInfo(&info->log);
+    FileDataManagerPrintInfo(&info->manager);
 }

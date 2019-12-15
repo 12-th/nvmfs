@@ -21,7 +21,7 @@ int FileExtentTreeAddSpace(struct FileExtentTree * tree, logic_addr_t addr, UINT
         return -ENOMEM;
     newNode->start = addr;
     newNode->size = size;
-    newNode->unmapRoot = RB_ROOT;
+    // newNode->unmapRoot = RB_ROOT;
 
     while (*new)
     {
@@ -33,7 +33,7 @@ int FileExtentTreeAddSpace(struct FileExtentTree * tree, logic_addr_t addr, UINT
             new = &((*new)->rb_right);
     }
     rb_link_node(&newNode->node, parent, new);
-    rb_insert_color(&newNode->node, &tree->fileExtentRoot);
+    rb_insert_color(&newNode->node, &tree->spaceRoot);
 
     tree->spaceSize += size;
     return 0;
@@ -87,11 +87,11 @@ static struct FileExtentNode * ExtentTreeLowerBound(struct FileExtentTree * tree
 
 static void DeleteExtentNode(struct FileExtentNode * node, struct FileExtentTree * tree)
 {
-    struct FileSpaceNode * spaceNode;
+    // struct FileSpaceNode * spaceNode;
 
-    spaceNode = LookupFileSpaceNode(tree, node->start);
+    // spaceNode = LookupFileSpaceNode(tree, node->start);
     rb_erase(&node->extentNode, &tree->fileExtentRoot);
-    rb_erase(&node->spaceNode, &spaceNode->unmapRoot);
+    // rb_erase(&node->spaceNode, &spaceNode->unmapRoot);
 }
 
 static void DeleteAndDestroyExtentNode(struct FileExtentNode * node, struct FileExtentTree * tree)
@@ -118,23 +118,23 @@ static void InsertExtentToExtentTree(struct FileExtentNode * newNode, struct rb_
     rb_insert_color(&newNode->extentNode, fileExtentRoot);
 }
 
-static void InsertExtentToSpaceUnmapTree(struct FileExtentNode * newNode, struct rb_root * spaceUnmapTreeRoot)
-{
-    struct rb_node ** new = &spaceUnmapTreeRoot->rb_node;
-    struct rb_node * parent = NULL;
+// static void InsertExtentToSpaceUnmapTree(struct FileExtentNode * newNode, struct rb_root * spaceUnmapTreeRoot)
+// {
+//     struct rb_node ** new = &spaceUnmapTreeRoot->rb_node;
+//     struct rb_node * parent = NULL;
 
-    while (*new)
-    {
-        struct FileExtentNode * cur = container_of(*new, struct FileExtentNode, spaceNode);
-        parent = *new;
-        if (newNode->start < cur->start)
-            new = &((*new)->rb_left);
-        else
-            new = &((*new)->rb_right);
-    }
-    rb_link_node(&newNode->spaceNode, parent, new);
-    rb_insert_color(&newNode->spaceNode, spaceUnmapTreeRoot);
-}
+//     while (*new)
+//     {
+//         struct FileExtentNode * cur = container_of(*new, struct FileExtentNode, spaceNode);
+//         parent = *new;
+//         if (newNode->start < cur->start)
+//             new = &((*new)->rb_left);
+//         else
+//             new = &((*new)->rb_right);
+//     }
+//     rb_link_node(&newNode->spaceNode, parent, new);
+//     rb_insert_color(&newNode->spaceNode, spaceUnmapTreeRoot);
+// }
 
 static void InsertExtentNode(struct FileExtentNode * node, struct FileExtentTree * tree)
 {
@@ -143,7 +143,7 @@ static void InsertExtentNode(struct FileExtentNode * node, struct FileExtentTree
     space = LookupFileSpaceNode(tree, node->start);
     ASSERT(space);
     InsertExtentToExtentTree(node, &tree->fileExtentRoot);
-    InsertExtentToSpaceUnmapTree(node, &space->unmapRoot);
+    // InsertExtentToSpaceUnmapTree(node, &space->unmapRoot);
     tree->effectiveSize += node->size;
 }
 
@@ -204,14 +204,14 @@ static void ExtentTreeErase(struct FileExtentTree * tree, UINT64 fileStart, UINT
         else if (curStart <= extentStart && curEnd >= extentEnd)
         {
             UINT64 newExtentSize;
-            //     |------|
-            //  |------------|
+            //     |------|     extent
+            //  |------------| cur
             cur->size = extentStart - curStart;
-            if (cur->size == 0)
-                DeleteAndDestroyExtentNode(cur, tree);
             newExtentSize = curEnd - extentEnd;
             if (newExtentSize)
                 CreateAndInsertExtentNode(cur->start + (extentEnd - curStart), extentEnd, newExtentSize, tree, flags);
+            if (cur->size == 0)
+                DeleteAndDestroyExtentNode(cur, tree);
             tree->effectiveSize -= (extentEnd - extentStart);
         }
         else if (curStart >= extentStart && curEnd <= extentEnd)
@@ -456,4 +456,28 @@ static int SpaceTreeIsSame(struct FileExtentTree * tree1, struct FileExtentTree 
 int FileExtentTreeIsSame(struct FileExtentTree * tree1, struct FileExtentTree * tree2)
 {
     return ExtentTreeIsSame(tree1, tree2) && SpaceTreeIsSame(tree1, tree2);
+}
+
+void FileExtentTreePrintInfo(struct FileExtentTree * tree)
+{
+    struct rb_node * cur;
+
+    DEBUG_PRINT(" file space tree:");
+    cur = rb_first(&tree->spaceRoot);
+    while (cur)
+    {
+        struct FileSpaceNode * node;
+        node = container_of(cur, struct FileSpaceNode, node);
+        DEBUG_PRINT("\t space start 0x%lx, size 0x%lx", node->start, node->size);
+        cur = rb_next(cur);
+    }
+    DEBUG_PRINT(" file extent tree:");
+    cur = rb_first(&tree->fileExtentRoot);
+    while (cur)
+    {
+        struct FileExtentNode * node;
+        node = container_of(cur, struct FileExtentNode, extentNode);
+        DEBUG_PRINT("\t extent start 0x%lx, file start 0x%lx, size 0x%lx", node->start, node->fileStart, node->size);
+        cur = rb_next(cur);
+    }
 }

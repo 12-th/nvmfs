@@ -38,5 +38,6 @@ void FileDataManagerRebuildAddExtent(struct FileDataManager * manager, logic_add
 void FileDataManagerRebuildEnd(struct FileDataManager * manager);
 
 int FileDataManagerIsSame(struct FileDataManager * manager1, struct FileDataManager * manager2);
+void FileDataManagerPrintInfo(struct FileDataManager * manager);
 
 #endif
