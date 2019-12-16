@@ -11,6 +11,7 @@ void InodeTableFormat(struct InodeTable * pTable, nvm_addr_t addr, UINT64 size)
     int i;
     UINT64 listTableSize;
 
+    DEBUG_PRINT("inode table format ,addr is 0x%lx", addr);
     maxInodeNum = size / sizeof(void *);
     listTableSize = maxInodeNum * sizeof(struct InodeTableEntry);
     pTable->addr = addr;

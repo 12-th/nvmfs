@@ -3,6 +3,7 @@
 
 #include "AtomicFunctions.h"
 #include "Types.h"
+#include "common.h"
 #include <linux/string.h>
 
 extern void * NVMEmulatorAddr;

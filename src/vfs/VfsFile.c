@@ -1,3 +1,4 @@
+#include "DebugIoctl.h"
 #include "DirInodeInfo.h"
 #include "File.h"
 #include "FileInodeInfo.h"
@@ -122,12 +123,14 @@ static loff_t NvmfsLlseek(struct file * file, loff_t offset, int whence)
     return ret;
 }
 
-struct file_operations NvmfsDirFileOps = {.open = NvmfsFileOpen, .release = NvmfsFileRelease, .iterate = NvmfsIterate};
+struct file_operations NvmfsDirFileOps = {
+    .open = NvmfsFileOpen, .release = NvmfsFileRelease, .iterate = NvmfsIterate, .unlocked_ioctl = NvmfsUnlockedIoctl};
 struct file_operations NvmfsRegFileOps = {.open = NvmfsFileOpen,
                                           .release = NvmfsFileRelease,
                                           .read = NvmfsFileRead,
                                           .write = NvmfsFileWrite,
-                                          .llseek = NvmfsLlseek};
+                                          .llseek = NvmfsLlseek,
+                                          .unlocked_ioctl = NvmfsUnlockedIoctl};
 
 // struct file_operations
 // {

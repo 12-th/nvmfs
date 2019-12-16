@@ -1,6 +1,7 @@
 #include "NVMAccesser.h"
 #include "NVMOperations.h"
 #include "WearLeveler.h"
+#include "common.h"
 
 void NVMAccesserInit(struct NVMAccesser * acc, struct WearLeveler * wl)
 {

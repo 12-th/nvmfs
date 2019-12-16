@@ -2,6 +2,7 @@
 #include "DirFileDentryCache.h"
 #include "Log.h"
 #include "NVMAccesser.h"
+#include "common.h"
 #include <linux/slab.h>
 
 void DirFileDentryCacheInit(struct DirFileDentryCache * cache)
@@ -148,8 +149,11 @@ void DirFileDentryCacheIterate(struct DirFileDentryCache * cache, UINT64 index,
             buffer = kmalloc(node->nameLen, GFP_KERNEL);
             bufferLen = node->nameLen;
         }
+
         LogRead(log, node->nameAddr, node->nameLen, buffer, acc);
         err = func(data, node->type, buffer, node->nameLen, node->ino);
+        DEBUG_PRINT("file iterate, nameaddr is 0x%lx, len is %ld, name is %s", node->nameAddr,
+                    (unsigned long)node->nameLen, buffer);
         if (err)
         {
             kfree(buffer);

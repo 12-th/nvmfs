@@ -117,6 +117,7 @@ int DirInodeInfoAddDentry(struct DirInodeInfo * info, nvmfs_ino_t ino, char * na
     LogStepWriteContinue(&handle, name, len, &nameAddr, acc);
     LogStepWriteEnd(&handle, acc);
     DirFileDentryCacheJustAppendDentry(&info->cache, ino, type, nameAddr, nameHash, len);
+    DEBUG_PRINT("dentry add, ino is %d, name is %s, nameLen is %ld, nameAddr is 0x%lx\n", ino, name, len, nameAddr);
     return err;
 }
 

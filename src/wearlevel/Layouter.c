@@ -67,6 +67,6 @@ void LayouterInit(struct Layouter * l, UINT64 nvmSizeBits, UINT64 reserveDataSiz
     l->blockSwapTransactionLogArea = l->swapTable + sizeOfSwapTable();
     l->pageSwapTransactionLogArea = l->blockSwapTransactionLogArea + sizeOfBlockSwapTransactionLogArea();
     l->mapTableSerializeData = l->pageSwapTransactionLogArea + sizeOfPageSwapTransactionLogArea();
-    l->reserveData = l->mapTableSerializeData + l->reserveDataSize;
-    l->dataStart = AlignUpBits(l->reserveData + sizeOfMapTableSerializeData(nvmSizeBits), BITS_2M);
+    l->reserveData = l->mapTableSerializeData + sizeOfMapTableSerializeData(nvmSizeBits);
+    l->dataStart = AlignUpBits(l->reserveData + l->reserveDataSize, BITS_2M);
 }
