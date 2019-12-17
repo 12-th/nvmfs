@@ -52,7 +52,10 @@ int LogWrite(struct Log * log, UINT64 size, void * buffer, UINT8 type, logic_add
     headAddr = log->writeStart;
     entryAddr = ContinousSpaceCalculateNextAddr(headAddr, sizeof(struct LogEntryHead), acc);
     footAddr = ContinousSpaceCalculateNextAddr(entryAddr, alignedSize, acc);
-    ContinousSpaceWrite(buffer, size, entryAddr, acc);
+    if (buffer)
+    {
+        ContinousSpaceWrite(buffer, size, entryAddr, acc);
+    }
     ContinousSpaceWrite(&foot, sizeof(struct LogEntryFoot), footAddr, acc);
     ContinousSpaceWrite(&head, sizeof(struct LogEntryHead), headAddr, acc);
     log->writeStart = footAddr;
@@ -107,6 +110,10 @@ void LogForEachEntryImpl(struct Log * log, struct LogCleanupOps * opsArray, void
             readEnd = ContinousSpaceCalculateNextAddr(readStart, size, acc);
             ContinousSpaceRead(buffer, size, readStart, acc);
             ops->cleanup(head.type, size, buffer, readStart, readEnd, data);
+        }
+        else if (alignedSize == 0 && ops->cleanup)
+        {
+            ops->cleanup(head.type, 0, NULL, invalid_nvm_addr, invalid_nvm_addr, data);
         }
         addr = ContinousSpaceCalculateNextAddr(addr, alignedSize + sizeof(struct LogEntryHead), acc);
         ContinousSpaceRead(&head, sizeof(struct LogEntryFoot), addr, acc);

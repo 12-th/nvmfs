@@ -404,6 +404,12 @@ void FileExtentTreeUninit(struct FileExtentTree * tree)
     ExtentTreeDestroy(tree);
 }
 
+void FileExtentTreeTruncate(struct FileExtentTree * tree)
+{
+    ExtentTreeDestroy(tree);
+    tree->effectiveSize = 0;
+}
+
 UINT64 FileExtentTreeCalculateEffectiveSize(struct FileExtentTree * tree)
 {
     return tree->effectiveSize;

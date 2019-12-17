@@ -37,6 +37,7 @@ void InodeRecovery(logic_addr_t inode, struct FsConstructor * ctor, struct Circu
 void InodeDestroy(struct BaseInodeInfo * info, struct NvmfsInfo * fsInfo);
 int InodeRebuild(struct BaseInodeInfo ** infoPtr, struct InodeTable * pTable, nvmfs_ino_t ino, struct PagePool * ppool,
                  struct BlockPool * bpool, struct NVMAccesser * acc);
+int InodeTruncate(struct BaseInodeInfo * info, struct NvmfsInfo * fsInfo);
 UINT64 InodeInfoGetPageNum(struct BaseInodeInfo * info);
 UINT64 InodeInfoGetSize(struct BaseInodeInfo * info);
 

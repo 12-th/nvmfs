@@ -9,8 +9,8 @@
 
 static int NvmfsFileOpen(struct inode * inode, struct file * file)
 {
-    // DEBUG_PRINT("file open, ino is %ld", ((struct BaseInodeInfo *)(inode->i_private))->thisIno);
-    // DEBUG_PRINT("file open");
+    if ((file->f_mode & FMODE_WRITE) && (file->f_flags & O_TRUNC))
+        return InodeTruncate(inode->i_private, inode->i_sb->s_fs_info);
     return 0;
 }
 
@@ -63,11 +63,6 @@ static ssize_t NvmfsFileWrite(struct file * file, const char __user * buffer, si
         return writeSize;
     (*offset) += writeSize;
     return writeSize;
-
-    // struct FileInodeInfo * inodeInfo;
-    // inodeInfo = file->f_inode->i_private;
-    // FileInodePrintInfo(inodeInfo);
-    // return size;
 }
 
 static int NvmfsIterateFunc(void * data, UINT8 type, const char * name, UINT32 len, nvmfs_ino_t ino)

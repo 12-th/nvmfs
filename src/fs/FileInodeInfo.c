@@ -56,6 +56,11 @@ INT64 FileInodeInfoWriteData(struct FileInodeInfo * info, void * buffer, UINT64 
     return size;
 }
 
+int FileInodeInfoTruncate(struct FileInodeInfo * info, struct NVMAccesser * acc)
+{
+    return FileDataManagerTruncate(&info->manager, &info->log, acc);
+}
+
 //-------------- recovery-------------------
 
 struct FileInodeRecoveryContex
@@ -84,7 +89,10 @@ static void FileInodeRecoveryAddNewSpaceCleanup(UINT8 type, UINT32 size, void * 
 }
 
 struct LogCleanupOps FileInodeRecoveryCleanupOps[] = {
-    {NULL, NULL}, {FileInodeRecoveryAddNewSpacePrepare, FileInodeRecoveryAddNewSpaceCleanup}, {NULL, NULL}};
+    {NULL, NULL},
+    {FileInodeRecoveryAddNewSpacePrepare, FileInodeRecoveryAddNewSpaceCleanup},
+    {NULL, NULL},
+    {NULL, NULL}};
 
 void FileInodeInfoRecovery(logic_addr_t inodeAddr, struct FsConstructor * ctor, struct CircularBuffer * cb,
                            struct NVMAccesser * acc)
@@ -148,10 +156,19 @@ static void FileInodeRebuildAddNewSpaceCleanup(UINT8 type, UINT32 size, void * b
     FileDataManagerRebuildAddSpace(&context->info->manager, entry->addr, entry->size);
 }
 
+static void FileInodeRebuildTruncate(UINT8 type, UINT32 size, void * buffer, logic_addr_t entryReadStartAddr,
+                                     logic_addr_t entryReadEndAddr, void * data)
+{
+    struct FileInodeRebuildContex * context;
+    context = data;
+    FileDataMangerRebuildTruncate(&context->info->manager);
+}
+
 struct LogCleanupOps FileInodeRebuildCleanupOps[] = {
     {NULL, NULL},
     {FileInodeRebuildAddNewSpacePrepare, FileInodeRebuildAddNewSpaceCleanup},
-    {FileInodeRebuildWriteDataPrepare, FileInodeRebuildWriteDataCleanup}};
+    {FileInodeRebuildWriteDataPrepare, FileInodeRebuildWriteDataCleanup},
+    {NULL, FileInodeRebuildTruncate}};
 
 void FileInodeInfoRebuild(struct FileInodeInfo * info, logic_addr_t inodeAddr, struct PagePool * ppool,
                           struct BlockPool * bpool, struct NVMAccesser * acc)

@@ -35,6 +35,7 @@ int FileExtentTreeAddExtent(struct FileExtentTree * tree, logic_addr_t addr, UIN
                             gfp_t flags);
 void FileExtentTreeRead(struct FileExtentTree * tree, UINT64 start, UINT64 end, void * buffer,
                         struct NVMAccesser * acc);
+void FileExtentTreeTruncate(struct FileExtentTree * tree);
 UINT64 FileExtentTreeGetEffectiveSize(struct FileExtentTree * tree);
 UINT64 FileExtentTreeGetSpaceSize(struct FileExtentTree * tree);
 void FileExtentTreeUninit(struct FileExtentTree * tree);

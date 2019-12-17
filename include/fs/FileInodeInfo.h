@@ -7,6 +7,7 @@
 
 #define INODE_LOG_ADD_SPACE 1
 #define INODE_LOG_WRITE_DATA 2
+#define INODE_LOG_TRUNCATE 3
 
 struct InodeLogWriteDataEntry
 {
@@ -36,6 +37,7 @@ int FileInodeInfoReadData(struct FileInodeInfo * info, void * buffer, UINT64 siz
                           struct NVMAccesser * acc);
 INT64 FileInodeInfoWriteData(struct FileInodeInfo * info, void * buffer, UINT64 size, UINT64 fileStart,
                              struct NVMAccesser * acc);
+int FileInodeInfoTruncate(struct FileInodeInfo * info, struct NVMAccesser * acc);
 void FileInodeInfoRecovery(logic_addr_t inodeAddr, struct FsConstructor * ctor, struct CircularBuffer * cb,
                            struct NVMAccesser * acc);
 void FileInodeInfoRebuild(struct FileInodeInfo * info, logic_addr_t inodeAddr, struct PagePool * ppool,

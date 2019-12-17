@@ -200,6 +200,17 @@ int FileDataManagerWriteData(struct FileDataManager * manager, void * buffer, UI
     return FileDataManagerWriteDataLarge(manager, buffer, size, fileStart, log, acc);
 }
 
+int FileDataManagerTruncate(struct FileDataManager * manager, struct Log * log, struct NVMAccesser * acc)
+{
+    int err;
+    err = LogWrite(log, 0, NULL, INODE_LOG_TRUNCATE, NULL, manager->ppool, acc);
+    if (err)
+        return err;
+    FileExtentTreeTruncate(&manager->tree);
+    manager->fileMaxLen = 0;
+    return 0;
+}
+
 static void CopyDataToArea(struct FileDataManager * manager, logic_addr_t srcAddr, UINT64 size, UINT64 fileStart,
                            struct Log * log, struct NVMAccesser * acc)
 {
@@ -346,6 +357,12 @@ void FileDataManagerRebuildAddExtent(struct FileDataManager * manager, logic_add
     FileExtentTreeAddExtent(&manager->tree, addr, fileStart, size, GFP_KERNEL);
     manager->curWriteStart = addr + size;
     UpdateFileMaxLen(manager, fileStart, size);
+}
+
+void FileDataMangerRebuildTruncate(struct FileDataManager * manager)
+{
+    FileExtentTreeTruncate(&manager->tree);
+    manager->fileMaxLen = 0;
 }
 
 void FileDataManagerRebuildEnd(struct FileDataManager * manager)

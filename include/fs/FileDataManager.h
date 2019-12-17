@@ -29,12 +29,14 @@ int FileDataManagerWriteData(struct FileDataManager * manager, void * buffer, UI
                              struct Log * log, struct NVMAccesser * acc);
 int FileDataManagerReadData(struct FileDataManager * manager, void * buffer, UINT64 size, UINT64 fileStart,
                             struct NVMAccesser * acc);
+int FileDataManagerTruncate(struct FileDataManager * manager, struct Log * log, struct NVMAccesser * acc);
 int FileDataManagerMergeData(struct FileDataManager * manager, struct Log * log, struct NVMAccesser * acc);
 
 void FileDataManagerRebuildBegin(struct FileDataManager * manager, struct PagePool * ppool, struct BlockPool * bpool);
 void FileDataManagerRebuildAddSpace(struct FileDataManager * manager, logic_addr_t addr, UINT64 size);
 void FileDataManagerRebuildAddExtent(struct FileDataManager * manager, logic_addr_t addr, UINT64 size,
                                      UINT64 fileStart);
+void FileDataMangerRebuildTruncate(struct FileDataManager * manager);
 void FileDataManagerRebuildEnd(struct FileDataManager * manager);
 
 static inline UINT64 FileDataManagerGetSpaceSize(struct FileDataManager * manager)

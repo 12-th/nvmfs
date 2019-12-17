@@ -170,6 +170,15 @@ int InodeRebuild(struct BaseInodeInfo ** infoPtr, struct InodeTable * pTable, nv
     return 0;
 }
 
+int InodeTruncate(struct BaseInodeInfo * info, struct NvmfsInfo * fsInfo)
+{
+    if (info->type == INODE_TYPE_REGULAR_FILE)
+    {
+        return FileInodeInfoTruncate((struct FileInodeInfo *)info, &fsInfo->acc);
+    }
+    return 0;
+}
+
 UINT64 InodeInfoGetPageNum(struct BaseInodeInfo * info)
 {
     switch (info->type)
