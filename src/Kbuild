@@ -1,5 +1,5 @@
 SOURCE_PATH = $(abspath $(PWD)/..)
-INCLUDE_DIR = fs mocked vfs wearlevel
+INCLUDE_DIR = fs mocked vfs wearlevel-refactor
 
 INCLUDE_PATH  := $(addprefix -I$(SOURCE_PATH)/include/, $(INCLUDE_DIR))
 INCLUDE_PATH += -I$(SOURCE_PATH)/include/
@@ -14,7 +14,7 @@ HOST_EXTRACFLAGS +=
 OBJS := $(subst $(SOURCE_PATH)/src/, , $(patsubst %.c, %.o,$(wildcard $(PWD)/fs/*.c)))
 OBJS += $(subst $(SOURCE_PATH)/src/, , $(patsubst %.c, %.o,$(wildcard $(PWD)/protection/*.c)))
 OBJS += $(subst $(SOURCE_PATH)/src/, , $(patsubst %.c, %.o,$(wildcard $(PWD)/vfs/*.c)))
-OBJS += $(subst $(SOURCE_PATH)/src/, , $(patsubst %.c, %.o,$(wildcard $(PWD)/wearlevel/*.c)))
+OBJS += $(subst $(SOURCE_PATH)/src/, , $(patsubst %.c, %.o,$(wildcard $(PWD)/wearlevel-refactor/*.c)))
 
 obj-m = nvmfs.o
 nvmfs-y = $(OBJS)

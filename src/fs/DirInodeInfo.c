@@ -41,6 +41,7 @@ void DirInodeInfoUninit(struct DirInodeInfo * info)
 
 void DirInodeInfoDestroy(struct DirInodeInfo * info, struct NVMAccesser * acc)
 {
+    DEBUG_PRINT("dir inode remove\n");
     DirFileDentryCacheUninit(&info->cache);
     LogDestroy(&info->log, acc, info->pool);
 }
@@ -104,6 +105,7 @@ int DirInodeInfoAddDentry(struct DirInodeInfo * info, nvmfs_ino_t ino, char * na
     UINT32 nameHash;
 
     nameHash = DJBHash(name, len);
+    entry.nameHash = nameHash;
     err = DirFileDentryCacheAppendDentryCheck(&info->cache, ino, name, nameHash, len, &info->log, acc);
     if (err)
         return err;

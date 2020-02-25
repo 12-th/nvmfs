@@ -28,14 +28,13 @@ static void FsInfoFormat(struct NvmfsInfo * info)
     WearLevelerFormat(&info->wl, FS_NVM_SIZE_BIT, FS_WEARLEVELER_RESERVE_SIZE);
     NVMAccesserInit(&info->acc, &info->wl);
     InodeTableFormat(&info->inodeTable, WearLevelerReserveDataAddrQuery(&info->wl), FS_INODE_TABLE_SIZE);
-    BlockPoolInit(&info->bpool);
+    BlockPoolInit(&info->bpool, &info->acc);
     ExtentContainerInit(&container, GFP_KERNEL);
-    ExtentContainerAppend(&container, 0, FS_NVM_BLOCK_NUM, GFP_KERNEL);
+    ExtentContainerAppend(&container, 0, WearLevelerLogicBlockNumQuery(&info->wl), GFP_KERNEL);
     BlockPoolExtentPut(&info->bpool, &container);
     ExtentContainerUninit(&container);
     PagePoolInit(&info->ppool, &info->bpool, info->acc);
 }
-
 int NvmfsInfoFormat(struct NvmfsInfo * info, mode_t rootMode)
 {
     FsInfoFormat(info);

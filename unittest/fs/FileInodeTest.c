@@ -22,7 +22,7 @@
     NVMAccesserInit(&acc, &wl);                                                                                        \
     ExtentContainerInit(&container, GFP_KERNEL);                                                                       \
     ExtentContainerAppend(&container, 0, 1UL << 30, GFP_KERNEL);                                                       \
-    BlockPoolInit(&bpool);                                                                                             \
+    BlockPoolInit(&bpool, &acc);                                                                                       \
     BlockPoolExtentPut(&bpool, &container);                                                                            \
     ExtentContainerUninit(&container);                                                                                 \
     PagePoolInit(&ppool, &bpool, acc);

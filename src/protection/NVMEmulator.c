@@ -9,6 +9,7 @@ UINT64 NVMEmulatorSize;
 int NVMEmulatorInit(UINT64 size)
 {
     NVMEmulatorAddr = vmalloc(size);
+    memset(NVMEmulatorAddr, 0, size);
     DEBUG_PRINT("nvm vmalloc emulator init, start addr is 0x%lx", (unsigned long)NVMEmulatorAddr);
     return 0;
 }

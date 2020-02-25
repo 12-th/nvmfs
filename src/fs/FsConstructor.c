@@ -21,7 +21,7 @@ void FsConstructorBegin(struct FsConstructor * ctor)
 {
     WearLevelerInit(ctor->wl, ctor->nvmSizeBits, ctor->wearLevelerReserveSize);
     NVMAccesserInit(&ctor->acc, ctor->wl);
-    BlockPoolRecoveryInit(ctor->bpool);
+    BlockPoolRecoveryInit(ctor->bpool, &ctor->acc);
     PagePoolRecoveryInit(ctor->ppool, ctor->bpool, ctor->acc);
     InodeTableRecoveryPreinit(ctor->inodeTable, ctor->inodeTableAddr, ctor->inodeTableSize);
 }

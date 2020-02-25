@@ -11,7 +11,7 @@ EXCLUDE_UNITTEST =
 
 INCLUDE_DIR = 	$(MOCK_DIR)/include							\
 				$(SRC_DIR)/include							\
-				$(SRC_DIR)/include/wearlevel				\
+				$(SRC_DIR)/include/wearlevel-refactor				\
 				$(SRC_DIR)/include/fs						\
 				$(UNITTEST_DIR)/include						\
 
@@ -21,13 +21,13 @@ TRIGGER_OBJS := $(patsubst %.c, %.o, $(wildcard *.c))
 #----module source file----------------
 EXCLUDE_SRC += $(notdir $(wildcard $(MOCK_DIR)/src/*.c))
 SRC_OBJS := $(patsubst %.c, %.o, $(filter-out $(addprefix $(SRC_DIR)/src/, $(EXCLUDE_SRC)), $(wildcard $(SRC_DIR)/src/*.c)))
-#--- wearlevel source file--------
-WEARLEVEL_OBJS := $(patsubst %.c, %.o, $(filter-out $(addprefix $(SRC_DIR)/src/wearlevel/, $(EXCLUDE_SRC)), $(wildcard $(SRC_DIR)/src/wearlevel/*.c)))
+#--- wearlevel-refactor source file--------
+WEARLEVEL_OBJS := $(patsubst %.c, %.o, $(filter-out $(addprefix $(SRC_DIR)/src/wearlevel-refactor/, $(EXCLUDE_SRC)), $(wildcard $(SRC_DIR)/src/wearlevel-refactor/*.c)))
 #--- fs source file--------
 FS_OBJS := $(patsubst %.c, %.o, $(filter-out $(addprefix $(SRC_DIR)/src/fs/, $(EXCLUDE_SRC)), $(wildcard $(SRC_DIR)/src/fs/*.c)))
 #----unit test source file--------------
 UNITTEST_OBJS := $(patsubst %.c, %.o, $(filter-out $(addprefix $(UNITTEST_DIR)/, $(EXCLUDE_UNITTEST)), $(wildcard $(UNITTEST_DIR)/*.c)))
-UNITTEST_OBJS += $(patsubst %.c, %.o, $(filter-out $(addprefix $(UNITTEST_DIR)/wearlevel/, $(EXCLUDE_UNITTEST)), $(wildcard $(UNITTEST_DIR)/wearlevel/*.c)))
+UNITTEST_OBJS += $(patsubst %.c, %.o, $(filter-out $(addprefix $(UNITTEST_DIR)/wearlevel-refactor/, $(EXCLUDE_UNITTEST)), $(wildcard $(UNITTEST_DIR)/wearlevel-refactor/*.c)))
 UNITTEST_OBJS += $(patsubst %.c, %.o, $(filter-out $(addprefix $(UNITTEST_DIR)/fs/, $(EXCLUDE_UNITTEST)), $(wildcard $(UNITTEST_DIR)/fs/*.c)))
 #----mock source file--------
 MOCK_OBJS := $(patsubst %.c, %.o, $(wildcard $(MOCK_DIR)/src/*.c))
@@ -45,7 +45,7 @@ CXX_INCLUDE_DIR = $(addprefix -I, $(INCLUDE_DIR))
 
 EXECUTABLE = trigger
 CXX = gcc
-CXX_FLAGS = -Wall -Werror $(CXX_INCLUDE_DIR)
+CXX_FLAGS = -Wall -Werror -Wunused-function $(CXX_INCLUDE_DIR)
 LD_FLAGS = -lpthread
 
 EXTRA_FLAGS = -g -DDEBUG

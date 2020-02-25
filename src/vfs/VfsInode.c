@@ -8,6 +8,7 @@
 #include "common.h"
 #include <linux/fs.h>
 #include <linux/pagemap.h>
+#include <linux/slab.h>
 
 static struct inode * AllocAndInitVfsInode(struct super_block * sb, mode_t mode, struct inode * dirInode)
 {
@@ -164,7 +165,7 @@ static struct dentry * VfsInodeLookup(struct inode * dirInode, struct dentry * d
     dirInfo = dirInode->i_private;
     fsInfo = dirInode->i_sb->s_fs_info;
 
-    DEBUG_PRINT("inode lookup, name is %s, len is %ld", dentry->d_name.name, (unsigned long)dentry->d_name.len);
+    // DEBUG_PRINT("inode lookup, name is %s, len is %ld", dentry->d_name.name, (unsigned long)dentry->d_name.len);
     err = DirInodeInfoLookupDentryByName(dirInfo, &ino, (char *)dentry->d_name.name, dentry->d_name.len + 1,
                                          &fsInfo->acc);
     if (err)
@@ -175,10 +176,10 @@ static struct dentry * VfsInodeLookup(struct inode * dirInode, struct dentry * d
     }
 
     err = VfsInodeRebuild(dirInode->i_sb, ino, dirInode, &pInode);
-    DEBUG_PRINT("inode lookup success, pInode->parentIno is %ld, pInode->thisIno is %ld, dirInode->thisIno is %ld",
-                ((struct BaseInodeInfo *)pInode->i_private)->parentIno,
-                ((struct BaseInodeInfo *)pInode->i_private)->thisIno,
-                ((struct BaseInodeInfo *)dirInode->i_private)->thisIno);
+    // DEBUG_PRINT("inode lookup success, pInode->parentIno is %ld, pInode->thisIno is %ld, dirInode->thisIno is %ld",
+    //             ((struct BaseInodeInfo *)pInode->i_private)->parentIno,
+    //             ((struct BaseInodeInfo *)pInode->i_private)->thisIno,
+    //             ((struct BaseInodeInfo *)dirInode->i_private)->thisIno);
     if (err)
         return ERR_PTR(err);
 
@@ -192,14 +193,22 @@ static int VfsInodeRemoveImpl(struct inode * dirInode, struct dentry * dentry)
     int err;
     nvmfs_ino_t ino;
     struct NvmfsInfo * fsInfo;
+    struct BaseInodeInfo * inodeInfo;
 
     dirInfo = dirInode->i_private;
     fsInfo = dirInode->i_sb->s_fs_info;
+    inodeInfo = dentry->d_inode->i_private;
     err = DirInodeInfoLookupDentryByName(dirInfo, &ino, (char *)dentry->d_name.name, dentry->d_name.len + 1,
                                          &fsInfo->acc);
     if (err)
         return err;
-    return DirInodeInfoRemoveDentry(dirInfo, ino, &fsInfo->acc);
+    err = DirInodeInfoRemoveDentry(dirInfo, ino, &fsInfo->acc);
+    if (err)
+        return err;
+    InodeDestroy(inodeInfo, fsInfo);
+    kfree(inodeInfo);
+    dentry->d_inode->i_private = NULL;
+    return 0;
 }
 
 static int VfsInodeUnlink(struct inode * dirInode, struct dentry * dentry)
@@ -242,7 +251,7 @@ static int VfsInodeGetattr(const struct path * path, struct kstat * stat, u32 re
     if (IS_AUTOMOUNT(inode))
         stat->attributes |= STATX_ATTR_AUTOMOUNT;
 
-    DEBUG_PRINT("getattr called, inode size is %ld", (unsigned long)stat->size);
+    // DEBUG_PRINT("getattr called, inode size is %ld", (unsigned long)stat->size);
     return 0;
 }
 

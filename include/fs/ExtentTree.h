@@ -24,7 +24,6 @@ struct ExtentContainer
 struct ExtentTree
 {
     struct rb_root root;
-    UINT64 size;
 };
 
 struct ExtentNode

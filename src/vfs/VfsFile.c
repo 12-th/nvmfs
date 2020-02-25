@@ -28,7 +28,7 @@ static ssize_t NvmfsFileRead(struct file * file, char __user * buffer, size_t si
     struct inode * pInode;
     ssize_t readSize;
 
-    DEBUG_PRINT("file read, offset is %ld, size is %ld", (unsigned long)(*offset), size);
+    // DEBUG_PRINT("file read, offset is %ld, size is %ld", (unsigned long)(*offset), size);
     pInode = file->f_inode;
     inodeInfo = pInode->i_private;
     info = pInode->i_sb->s_fs_info;
@@ -49,7 +49,7 @@ static ssize_t NvmfsFileWrite(struct file * file, const char __user * buffer, si
     ssize_t writeSize;
     struct inode * pInode;
 
-    DEBUG_PRINT("file write, offset is %ld, size is %ld\n", (unsigned long)(*offset), size);
+    // DEBUG_PRINT("file write, offset is %ld, size is %ld\n", (unsigned long)(*offset), size);
     pInode = file->f_inode;
     inodeInfo = pInode->i_private;
     info = pInode->i_sb->s_fs_info;
@@ -83,7 +83,7 @@ static int NvmfsIterate(struct file * file, struct dir_context * context)
 
     dirInfo = file->f_inode->i_private;
     fsInfo = file->f_inode->i_sb->s_fs_info;
-    DEBUG_PRINT("readdir , dir ino is %ld, contex->pos is %lld", dirInfo->baseInfo.thisIno, context->pos);
+    // DEBUG_PRINT("readdir , dir ino is %ld, contex->pos is %lld", dirInfo->baseInfo.thisIno, context->pos);
     DirInodeInfoIterateDentry(dirInfo, context->pos, NvmfsIterateFunc, context, &fsInfo->acc);
     return 0;
 }
@@ -112,8 +112,8 @@ static loff_t NvmfsLlseek(struct file * file, loff_t offset, int whence)
             ret = 0;
         break;
     }
-    DEBUG_PRINT("llseek, offset is %ld, whence is %ld, ret is %ld", (unsigned long)(offset), (unsigned long)(whence),
-                (unsigned long)ret);
+    // DEBUG_PRINT("llseek, offset is %ld, whence is %ld, ret is %ld", (unsigned long)(offset), (unsigned long)(whence),
+    //             (unsigned long)ret);
     file->f_pos = ret;
     return ret;
 }

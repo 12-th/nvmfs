@@ -1,0 +1,14 @@
+/mnt/c/Users/QaoAm/OneDrive/nvmfs/nvmfs/src/fs/InodeTable.c: In function ‘InodeTableFormat’:
+/mnt/c/Users/QaoAm/OneDrive/nvmfs/nvmfs/src/fs/InodeTable.c:19:25: error: implicit declaration of function ‘kvmalloc’; did you mean ‘kvmalloc’? [-Werror=implicit-function-declaration]
+     pTable->listTable = kvmalloc(listTableSize, GFP_KERNEL);
+                         ^~~~~~~~
+                         kvmalloc
+/mnt/c/Users/QaoAm/OneDrive/nvmfs/nvmfs/src/fs/InodeTable.c:19:23: error: assignment makes pointer from integer without a cast [-Werror=int-conversion]
+     pTable->listTable = kvmalloc(listTableSize, GFP_KERNEL);
+                       ^
+/mnt/c/Users/QaoAm/OneDrive/nvmfs/nvmfs/src/fs/InodeTable.c: In function ‘InodeTableRecoveryPreinit’:
+/mnt/c/Users/QaoAm/OneDrive/nvmfs/nvmfs/src/fs/InodeTable.c:38:23: error: assignment makes pointer from integer without a cast [-Werror=int-conversion]
+     pTable->listTable = kvmalloc(size, GFP_KERNEL);
+                       ^
+cc1: all warnings being treated as errors
+make: *** [/mnt/c/Users/QaoAm/OneDrive/nvmfs/nvmfs/src/fs/InodeTable.o] Error 1

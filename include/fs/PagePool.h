@@ -21,6 +21,7 @@ struct PageSubPool
 struct PagePool
 {
     UINT64 subPoolNum;
+    UINT64 pageNum;
     struct list_head nonFull;
     struct BlockPool * blockPool;
     spinlock_t lock;

@@ -17,7 +17,8 @@ int LogFormat(struct Log * log, struct PagePool * pool, UINT64 reserveSize, stru
     err = ContinousSpaceFormat(&log->cs, pool);
     if (err)
         return err;
-    log->reserveSize = reserveSize;
+    reserveSize = AlignUp(reserveSize, 8);
+    log->reserveSize = AlignUp(reserveSize, 8);
     log->writeStart = ContinousSpaceCalculateNextAddr(ContinousSpaceStart(&log->cs), reserveSize, acc);
     ContinousSpaceNotifyUsedSpace(&log->cs, reserveSize);
     ContinousSpaceWrite(&foot, sizeof(struct LogEntryFoot), log->writeStart, acc);
@@ -137,7 +138,7 @@ int LogStepWriteBegin(struct Log * log, struct LogStepWriteHandle * handle, UINT
 
     alignedSize = AlignUp(totalSize, 8);
     handle->head.type = type;
-    handle->head.size = alignedSize;
+    handle->head.size = totalSize;
     err = ContinousSpaceEssureEnoughSpace(
         &log->cs, log->writeStart, sizeof(struct LogEntryHead) + sizeof(struct LogEntryFoot) + alignedSize, pool, acc);
     ContinousSpaceNotifyUsedSpace(&log->cs, sizeof(struct LogEntryFoot) + alignedSize);
@@ -197,7 +198,7 @@ void LogRecoveryUninit(struct Log * log)
 
 void LogRebuildBegin(struct Log * log, logic_addr_t addr, UINT64 reserveSize)
 {
-    log->reserveSize = reserveSize;
+    log->reserveSize = AlignUp(reserveSize, 8);
     ContinousSpaceRebuildBegin(&log->cs, addr);
 }
 

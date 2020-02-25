@@ -3,12 +3,14 @@
 
 #define MAX_CACHE_BLOCK_NUM 5
 
-void BlockPoolInit(struct BlockPool * pool)
+void BlockPoolInit(struct BlockPool * pool, struct NVMAccesser * acc)
 {
     ExtentTreeInit(&pool->tree);
     pool->blocksCache = kmalloc(sizeof(logical_block_t) * MAX_CACHE_BLOCK_NUM, GFP_KERNEL);
     pool->cachedBlockNum = 0;
+    pool->blockNum = 0;
     mutex_init(&pool->lock);
+    pool->acc = acc;
 }
 
 void BlockPoolUninit(struct BlockPool * pool)
@@ -62,6 +64,7 @@ UINT64 BlockPoolGet(struct BlockPool * pool, UINT64 blockNum, logical_block_t * 
         }
     }
 out:
+    pool->blockNum -= gotBlockNum;
     mutex_unlock(&pool->lock);
     ExtentContainerUninit(&container);
     return gotBlockNum;
@@ -71,17 +74,51 @@ void BlockPoolExtentGet(struct BlockPool * pool, UINT64 blockNum, struct ExtentC
 {
     mutex_lock(&pool->lock);
     ExtentTreeGet(&pool->tree, container, blockNum, GFP_KERNEL);
+    pool->blockNum -= container->size;
     mutex_unlock(&pool->lock);
+}
+
+static void TrimBlockWithArray(struct BlockPool * pool, UINT64 blockNum, logical_block_t * blockArray)
+{
+    int i = 0;
+    if (pool->acc)
+    {
+        for (i = 0; i < blockNum; ++i)
+        {
+            NVMAccesserTrim(pool->acc, logical_block_to_addr(blockArray[i]));
+        }
+    }
+}
+
+static void TrimBlockWithContainer(struct BlockPool * pool, struct ExtentContainer * container)
+{
+    struct Extent * extent;
+    int i;
+
+    if (pool->acc)
+    {
+        for_each_extent_in_container(extent, container)
+        {
+            for (i = extent->start; i < extent->end; ++i)
+            {
+                NVMAccesserTrim(pool->acc, logical_block_to_addr(i));
+            }
+        }
+    }
 }
 
 void BlockPoolPut(struct BlockPool * pool, UINT64 blockNum, logical_block_t * blockArray)
 {
     UINT64 outToTreeBlockNum;
-    mutex_lock(&pool->lock);
 
+    TrimBlockWithArray(pool, blockNum, blockArray);
+
+    mutex_lock(&pool->lock);
+    pool->blockNum += blockNum;
     if (blockNum + pool->cachedBlockNum <= MAX_CACHE_BLOCK_NUM)
     {
         memcpy(pool->blocksCache + pool->cachedBlockNum, blockArray, blockNum * sizeof(logical_block_t));
+        pool->cachedBlockNum += blockNum;
         mutex_unlock(&pool->lock);
         return;
     }
@@ -98,8 +135,8 @@ void BlockPoolPut(struct BlockPool * pool, UINT64 blockNum, logical_block_t * bl
         {
             ExtentTreePut(&pool->tree, blockArray[i], blockArray[i] + 1, GFP_KERNEL);
         }
-        memcpy(pool->blocksCache, blockArray + i, (blockNum - i + 1) * sizeof(logical_block_t));
-        pool->cachedBlockNum = blockNum - i + 1;
+        memcpy(pool->blocksCache, blockArray + i, (blockNum - i) * sizeof(logical_block_t));
+        pool->cachedBlockNum = blockNum - i;
     }
     else
     {
@@ -122,14 +159,16 @@ void BlockPoolPut(struct BlockPool * pool, UINT64 blockNum, logical_block_t * bl
 
 void BlockPoolExtentPut(struct BlockPool * pool, struct ExtentContainer * container)
 {
+    TrimBlockWithContainer(pool, container);
     mutex_lock(&pool->lock);
+    pool->blockNum += container->size;
     ExtentTreeBatchPut(&pool->tree, container, GFP_KERNEL);
     mutex_unlock(&pool->lock);
 }
 
-void BlockPoolRecoveryInit(struct BlockPool * pool)
+void BlockPoolRecoveryInit(struct BlockPool * pool, struct NVMAccesser * acc)
 {
-    BlockPoolInit(pool);
+    BlockPoolInit(pool, acc);
 }
 
 void BlockPoolRecoveryNotifyBlockBusy(struct BlockPool * pool, logical_block_t startBlock, UINT64 blockNum)
@@ -140,4 +179,17 @@ void BlockPoolRecoveryNotifyBlockBusy(struct BlockPool * pool, logical_block_t s
 void BlockPoolRecoveryEnd(struct BlockPool * pool, UINT64 totalBlockNum)
 {
     ExtentTreeReverseHolesAndExtents(&pool->tree, totalBlockNum);
+    pool->blockNum = totalBlockNum - pool->blockNum;
+}
+
+UINT64 BlockPoolQueryInTreeBlockNum(struct BlockPool * pool)
+{
+    struct ExtentNode * extent;
+    struct rb_node * rbnode;
+    UINT64 sum = 0;
+    for_each_extent_in_extent_tree(extent, rbnode, &pool->tree)
+    {
+        sum += extent->extent.end - extent->extent.start;
+    }
+    return sum;
 }

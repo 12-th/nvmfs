@@ -17,7 +17,7 @@ struct FileDataManager
     logic_addr_t curArea;
     logic_addr_t curWriteStart;
     UINT64 curSize;
-    logical_page_t lastUsedPage;
+    logic_addr_t lastUsedPage;
 
     UINT64 fileMaxLen;
 };

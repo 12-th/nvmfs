@@ -489,3 +489,18 @@ void FileExtentTreePrintInfo(struct FileExtentTree * tree)
         cur = rb_next(cur);
     }
 }
+
+void FileExtentTreePrintSpaceInfo(struct FileExtentTree * tree)
+{
+    struct rb_node * cur;
+
+    DEBUG_PRINT(" file space tree:");
+    cur = rb_first(&tree->spaceRoot);
+    while (cur)
+    {
+        struct FileSpaceNode * node;
+        node = container_of(cur, struct FileSpaceNode, node);
+        DEBUG_PRINT("\t space start 0x%lx, size 0x%lx\n", node->start, node->size);
+        cur = rb_next(cur);
+    }
+}

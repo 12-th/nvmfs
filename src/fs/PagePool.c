@@ -34,6 +34,7 @@ void PagePoolInit(struct PagePool * pool, struct BlockPool * blockPool, struct N
 {
     RadixTreeInit(&pool->tree);
     pool->subPoolNum = 0;
+    pool->pageNum = 0;
     pool->blockPool = blockPool;
     spin_lock_init(&pool->lock);
     INIT_LIST_HEAD(&pool->nonFull);
@@ -82,6 +83,13 @@ static inline void BitmapSet(UINT64 * bitmap, int index)
     bitmap[indexOfUINT64] |= (1UL << indexInsideUINT64);
 }
 
+static inline void BitmapClear(UINT64 * bitmap, int index)
+{
+    UINT64 indexOfUINT64 = index / 64;
+    UINT64 indexInsideUINT64 = index % 64;
+    bitmap[indexOfUINT64] &= (~(1UL << indexInsideUINT64));
+}
+
 static inline void NextIndexSet(struct PageSubPool * sp, int index)
 {
     sp->nextIndex = index / 64;
@@ -105,6 +113,7 @@ static inline void AddPageSubPool(struct PagePool * pool, struct PageSubPool * s
     list_add(&pool->nonFull, &sp->list);
     pool->subPoolNum++;
     RadixTreeSet(&pool->tree, sp->block, sp);
+    FETCH_AND_ADD(&pool->pageNum, 512);
 }
 
 static struct PageSubPool * PageSubPoolPrepare(struct PagePool * pool)
@@ -123,8 +132,8 @@ static struct PageSubPool * PageSubPoolPrepare(struct PagePool * pool)
 
 static void PageSubPoolDeprecate(struct PagePool * pool, struct PageSubPool * sp, int removeFromTree)
 {
-    NVMAccesserTrim(&pool->acc, logical_block_to_addr(sp->block));
     NVMAccesserMerge(&pool->acc, logical_block_to_addr(sp->block));
+    NVMAccesserTrim(&pool->acc, logical_block_to_addr(sp->block));
     BlockPoolPut(pool->blockPool, 1, &sp->block);
     DestroyPageSubPool(sp);
     if (removeFromTree)
@@ -177,6 +186,7 @@ out:
         DestroyPageSubPool(fullSp);
     if (page == invalid_page)
         return invalid_nvm_addr;
+    FETCH_AND_ADD(&pool->pageNum, -1);
     return logical_page_to_addr(page);
 }
 
@@ -220,6 +230,7 @@ out:
 
     if (page == invalid_page)
         return invalid_nvm_addr;
+    FETCH_AND_ADD(&pool->pageNum, -1);
     return logical_page_to_addr(page);
 }
 
@@ -258,14 +269,16 @@ void PagePoolFree(struct PagePool * pool, logic_addr_t addr)
     }
 
     index = BitmapIndexOfPage(page);
-    BitmapSet(sp->bitmap, index);
-    sp->nextIndex = index;
+    BitmapClear(sp->bitmap, index);
+    NextIndexSet(sp, index);
     sp->count++;
+    FETCH_AND_ADD(&pool->pageNum, 1);
 
     if (sp->count == 512 && pool->subPoolNum >= 3)
     {
         list_del(&sp->list);
         pool->subPoolNum--;
+        FETCH_AND_ADD(&pool->pageNum, -512);
         RadixTreeSet(&pool->tree, sp->block, NULL);
         emptySp = sp;
     }

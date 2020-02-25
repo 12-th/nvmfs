@@ -72,6 +72,77 @@ TEST(ExtentTreeTest, GetPutTest3)
     ExtentTreeUninit(&tree);
 }
 
+TEST(ExtentTreeTest, GetPutTest4)
+{
+    struct ExtentTree tree;
+    struct ExtentContainer container;
+    struct ExtentNode * extent;
+    struct rb_node * rbnode;
+    UINT64 sum = 0;
+
+    ExtentTreeInit(&tree);
+    ExtentContainerInit(&container, GFP_KERNEL);
+    ExtentTreePut(&tree, 0, 495, GFP_KERNEL);
+    ExtentContainerUninit(&container);
+    ExtentContainerInit(&container, GFP_KERNEL);
+    ExtentTreeGet(&tree, &container, 1, GFP_KERNEL);
+    ExtentTreeGet(&tree, &container, 1, GFP_KERNEL);
+    ExtentTreeGet(&tree, &container, 1, GFP_KERNEL);
+    ExtentTreeGet(&tree, &container, 1, GFP_KERNEL);
+    ExtentContainerUninit(&container);
+    ExtentTreePut(&tree, 2, 3, GFP_KERNEL);
+    ExtentTreePut(&tree, 3, 4, GFP_KERNEL);
+    for_each_extent_in_extent_tree(extent, rbnode, &tree)
+    {
+        sum += extent->extent.end - extent->extent.start;
+    }
+
+    EXPECT_EQ(sum, 493);
+
+    ExtentTreeUninit(&tree);
+}
+
+TEST(ExtentTreeTest, GetPutTest5)
+{
+    struct ExtentTree tree;
+    struct ExtentContainer container;
+    struct ExtentNode * extent;
+    struct rb_node * rbnode;
+    UINT64 sum = 0;
+
+    ExtentTreeInit(&tree);
+    ExtentContainerInit(&container, GFP_KERNEL);
+    ExtentTreePut(&tree, 0, 495, GFP_KERNEL);
+    ExtentContainerUninit(&container);
+    ExtentContainerInit(&container, GFP_KERNEL);
+    ExtentTreeGet(&tree, &container, 1, GFP_KERNEL);
+    ExtentTreeGet(&tree, &container, 1, GFP_KERNEL);
+    ExtentTreeGet(&tree, &container, 1, GFP_KERNEL);
+    ExtentTreeGet(&tree, &container, 1, GFP_KERNEL);
+
+    ExtentTreePut(&tree, 2, 3, GFP_KERNEL);
+    ExtentTreePut(&tree, 3, 4, GFP_KERNEL);
+    ExtentTreeGet(&tree, &container, 1, GFP_KERNEL);
+    ExtentTreeGet(&tree, &container, 1, GFP_KERNEL);
+    ExtentTreePut(&tree, 2, 3, GFP_KERNEL);
+    ExtentTreePut(&tree, 3, 4, GFP_KERNEL);
+    ExtentTreeGet(&tree, &container, 1, GFP_KERNEL);
+    ExtentTreeGet(&tree, &container, 1, GFP_KERNEL);
+    ExtentTreePut(&tree, 2, 3, GFP_KERNEL);
+    ExtentTreePut(&tree, 3, 4, GFP_KERNEL);
+    ExtentTreeGet(&tree, &container, 1, GFP_KERNEL);
+    ExtentTreeGet(&tree, &container, 1, GFP_KERNEL);
+    ExtentContainerUninit(&container);
+
+    for_each_extent_in_extent_tree(extent, rbnode, &tree)
+    {
+        sum += extent->extent.end - extent->extent.start;
+    }
+    EXPECT_EQ(sum, 491);
+
+    ExtentTreeUninit(&tree);
+}
+
 TEST(ExtentTreeTest, ExtetnContainerTest)
 {
     UINT64 arrayNum = 100;

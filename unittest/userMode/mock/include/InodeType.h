@@ -3,10 +3,10 @@
 
 #include <linux/fs.h>
 
-#define S_IFMT (-1UL)
-#define S_IFREG 1
-#define S_IFDIR 2
-#define S_IFLNK 3
+// #define S_IFMT (-1UL)
+// #define S_IFREG 1
+// #define S_IFDIR 2
+// #define S_IFLNK 3
 #define DT_REG 1
 #define DT_DIR 2
 #define DT_LNK 3

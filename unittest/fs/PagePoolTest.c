@@ -18,7 +18,7 @@ TEST(PagePoolTest, AllocFreeTest1)
     WearLevelerFormat(&wl, 30, 0);
     NVMAccesserInit(&acc, &wl);
 
-    BlockPoolInit(&bpool);
+    BlockPoolInit(&bpool, &acc);
     PagePoolInit(&ppool, &bpool, acc);
     ExtentContainerInit(&container, GFP_KERNEL);
     ExtentContainerAppend(&container, 0, 100, GFP_KERNEL);
@@ -53,7 +53,7 @@ TEST(PagePoolTest, AllocFreeTest2)
     NVMAccesserInit(&acc, &wl);
 
     pages = kmalloc(sizeof(logical_page_t) * 512, GFP_KERNEL);
-    BlockPoolInit(&bpool);
+    BlockPoolInit(&bpool, &acc);
     PagePoolInit(&ppool, &bpool, acc);
     ExtentContainerInit(&container, GFP_KERNEL);
     ExtentContainerAppend(&container, 0, 100, GFP_KERNEL);
@@ -99,7 +99,7 @@ TEST(PagePoolTest, AllocFreeTest3)
     NVMAccesserInit(&acc, &wl);
 
     pages = kmalloc(sizeof(logical_page_t) * 513, GFP_KERNEL);
-    BlockPoolInit(&bpool);
+    BlockPoolInit(&bpool, &acc);
     PagePoolInit(&ppool, &bpool, acc);
     ExtentContainerInit(&container, GFP_KERNEL);
     ExtentContainerAppend(&container, 0, 100, GFP_KERNEL);
@@ -133,6 +133,45 @@ TEST(PagePoolTest, AllocFreeTest3)
     NVMUninit();
 }
 
+TEST(PagePoolTest, AllocFreeTest4)
+{
+    struct BlockPool bpool;
+    struct PagePool ppool;
+    logical_page_t * pages;
+    struct ExtentContainer container;
+    UINT64 i;
+
+    struct WearLeveler wl;
+    struct NVMAccesser acc;
+
+    NVMInit(1UL << 30);
+    WearLevelerFormat(&wl, 30, 0);
+    NVMAccesserInit(&acc, &wl);
+
+    pages = kmalloc(sizeof(logical_page_t) * 513, GFP_KERNEL);
+    BlockPoolInit(&bpool, &acc);
+    PagePoolInit(&ppool, &bpool, acc);
+    ExtentContainerInit(&container, GFP_KERNEL);
+    ExtentContainerAppend(&container, 0, 100, GFP_KERNEL);
+    BlockPoolExtentPut(&bpool, &container);
+    ExtentContainerUninit(&container);
+
+    pages[0] = logical_addr_to_page(PagePoolAlloc(&ppool));
+    for (i = 1; i < 513; ++i)
+    {
+        pages[i] = logical_addr_to_page(PagePoolAlloc(&ppool));
+        PagePoolFree(&ppool, logical_page_to_addr(pages[i]));
+        EXPECT_EQ(pages[i], 1);
+    }
+
+    PagePoolUninit(&ppool);
+    BlockPoolUninit(&bpool);
+    kfree(pages);
+
+    WearLevelerUninit(&wl);
+    NVMUninit();
+}
+
 TEST(PagePoolTest, AllocWithHintTest)
 {
     struct BlockPool bpool;
@@ -147,7 +186,7 @@ TEST(PagePoolTest, AllocWithHintTest)
     NVMInit(1UL << 30);
     WearLevelerFormat(&wl, 30, 0);
     NVMAccesserInit(&acc, &wl);
-    BlockPoolInit(&bpool);
+    BlockPoolInit(&bpool, &acc);
     PagePoolInit(&ppool, &bpool, acc);
     ExtentContainerInit(&container, GFP_KERNEL);
     ExtentContainerAppend(&container, 0, 100, GFP_KERNEL);

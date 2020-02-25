@@ -18,19 +18,21 @@ int main(int argc, char * argv[])
 {
     int fd;
 
-    if (argc < 3)
+    if (argc != 2 && argc != 1)
     {
-        printf("usage : cmd path cmdno\n");
+        printf("usage : cmd path\n");
+        printf("or\n");
+        printf("usage : cmd (default path is ~/tmp)\n");
         return 0;
     }
-    fd = open(argc > 1 ? argv[1] : "~/tmp", O_RDONLY);
+    fd = open(argc == 1 ? "/home/mq/tmp" : argv[1], O_RDONLY);
     if (fd == -1)
         handle_error("open");
 
-    if (argv[2][0] == '0')
-        ioctl(fd, 0xf001, 0);
-    else
-        ioctl(fd, 0xf002, 0);
+    char * buf = malloc(4096);
+    ioctl(fd, 0xf003, (unsigned long)buf);
+    printf("%s\n", buf);
+    free(buf);
 
     exit(EXIT_SUCCESS);
     return 0;

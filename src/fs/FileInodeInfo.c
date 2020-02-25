@@ -30,6 +30,7 @@ void FileInodeInfoUninit(struct FileInodeInfo * info)
 
 void FileInodeInfoDestroy(struct FileInodeInfo * info, struct NVMAccesser * acc)
 {
+    DEBUG_PRINT("file inode remove\n");
     LogDestroy(&info->log, acc, info->manager.ppool);
     FileDataManagerDestroy(&info->manager);
 }

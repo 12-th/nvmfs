@@ -4,7 +4,6 @@
 void ExtentTreeInit(struct ExtentTree * tree)
 {
     tree->root = RB_ROOT;
-    tree->size = 0;
 }
 
 void ExtentTreeUninit(struct ExtentTree * tree)
@@ -20,7 +19,6 @@ void ExtentTreeUninit(struct ExtentTree * tree)
         rb_erase(&extent->node, &tree->root);
         kfree(extent);
     }
-    tree->size = 0;
 }
 
 static inline int IsAddrInExtent(struct Extent * extent, UINT64 start)
@@ -110,7 +108,7 @@ void ExtentTreePut(struct ExtentTree * tree, UINT64 start, UINT64 end, gfp_t fla
     {
         rb_erase(&next->node, &tree->root);
         kfree(next);
-        prev->extent.end = end;
+        prev->extent.end = next->extent.end;
         return;
     }
     if (CanMergeFront(prev, start))

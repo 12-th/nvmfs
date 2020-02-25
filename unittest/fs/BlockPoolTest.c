@@ -10,7 +10,7 @@ TEST(BlockPoolTest, ExtentGetPutTest1)
     const UINT64 GET_SIZE = 512;
 
     ExtentContainerInit(&container, GFP_KERNEL);
-    BlockPoolInit(&pool);
+    BlockPoolInit(&pool, NULL);
     ExtentContainerAppend(&container, 0, 1UL << 19, GFP_KERNEL);
     BlockPoolExtentPut(&pool, &container);
     ExtentContainerClear(&container);
@@ -30,7 +30,7 @@ TEST(BlockPoolTest, ExtentGetPutTest2)
     const UINT64 GET_SIZE = 512;
 
     ExtentContainerInit(&container, GFP_KERNEL);
-    BlockPoolInit(&pool);
+    BlockPoolInit(&pool, NULL);
     ExtentContainerAppend(&container, 0, 1UL << 19, GFP_KERNEL);
     BlockPoolExtentPut(&pool, &container);
     ExtentContainerClear(&container);
@@ -65,7 +65,7 @@ TEST(BlockPoolTest, GetPutTest1)
 
     blockArr = kmalloc(sizeof(logical_block_t) * 512, GFP_KERNEL);
     ExtentContainerInit(&container, GFP_KERNEL);
-    BlockPoolInit(&pool);
+    BlockPoolInit(&pool, NULL);
     ExtentContainerAppend(&container, 0, 1UL << 19, GFP_KERNEL);
     BlockPoolExtentPut(&pool, &container);
 
@@ -92,7 +92,7 @@ TEST(BlockPoolTest, GetPutTest2)
 
     blockArr = kmalloc(sizeof(logical_block_t) * 512, GFP_KERNEL);
     ExtentContainerInit(&container, GFP_KERNEL);
-    BlockPoolInit(&pool);
+    BlockPoolInit(&pool, NULL);
     ExtentContainerAppend(&container, 0, 511, GFP_KERNEL);
     BlockPoolExtentPut(&pool, &container);
 

@@ -103,12 +103,13 @@ nvmfs_ino_t InodeTableGetIno(struct InodeTable * pTable)
         cur = pTable->head;
         pTable->head = pTable->head->next;
     }
-    return cur - pTable->listTable;
+    return cur - &pTable->listTable[0];
 }
 
 void InodeTablePutIno(struct InodeTable * pTable, nvmfs_ino_t ino)
 {
-    AppendToList(pTable, ino);
+    if (ino != 0)
+        AppendToList(pTable, ino);
 }
 
 void InodeTableUpdateInodeAddr(struct InodeTable * pTable, nvmfs_ino_t ino, logic_addr_t inode)

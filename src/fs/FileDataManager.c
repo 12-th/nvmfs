@@ -22,7 +22,7 @@ void FileDataManagerInit(struct FileDataManager * manager, struct BlockPool * bp
     FileExtentTreeInit(&manager->tree);
     manager->curArea = manager->curWriteStart = invalid_nvm_addr;
     manager->curSize = 0;
-    manager->lastUsedPage = invalid_page;
+    manager->lastUsedPage = invalid_nvm_addr;
     manager->fileMaxLen = 0;
 }
 
@@ -46,7 +46,8 @@ void FileDataManagerDestroy(struct FileDataManager * manager)
         }
         else
         {
-            ExtentContainerAppend(&container, space->start, space->start + space->size, GFP_KERNEL);
+            ExtentContainerAppend(&container, logical_addr_to_block(space->start),
+                                  logical_addr_to_block(space->start + space->size), GFP_KERNEL);
         }
     }
     BlockPoolExtentPut(manager->bpool, &container);

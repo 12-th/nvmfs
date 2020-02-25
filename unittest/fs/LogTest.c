@@ -18,7 +18,7 @@
     NVMInit(1UL << 30);                                                                                                \
     WearLevelerFormat(&wl, 30, 0);                                                                                     \
     NVMAccesserInit(&acc, &wl);                                                                                        \
-    BlockPoolInit(&bpool);                                                                                             \
+    BlockPoolInit(&bpool, &acc);                                                                                       \
     ExtentContainerInit(&container, GFP_KERNEL);                                                                       \
     ExtentContainerAppend(&container, 0, 1UL << 30, GFP_KERNEL);                                                       \
     BlockPoolExtentPut(&bpool, &container);                                                                            \
@@ -80,17 +80,17 @@ static void CleanupForTwoNum(UINT8 type, UINT32 size, void * buffer, logic_addr_
     struct LogTestInfo * info = (struct LogTestInfo *)(data);
     (void)(size);
     (void)(type);
-    info->array[info->index++] += ((UINT32 *)buffer)[0];
-    info->array[info->index++] += ((UINT32 *)buffer)[1];
+    info->array[info->index++] = ((UINT32 *)buffer)[0];
+    info->array[info->index++] = ((UINT32 *)buffer)[1];
 }
 
 static void CleanupForThreeNum(UINT8 type, UINT32 size, void * buffer, logic_addr_t entryReadStartAddr,
                                logic_addr_t entryReadEndAddr, void * data)
 {
     struct LogTestInfo * info = (struct LogTestInfo *)(data);
-    info->array[info->index++] += ((UINT32 *)buffer)[0];
-    info->array[info->index++] += ((UINT32 *)buffer)[1];
-    info->array[info->index++] += ((UINT32 *)buffer)[2];
+    info->array[info->index++] = ((UINT32 *)buffer)[0];
+    info->array[info->index++] = ((UINT32 *)buffer)[1];
+    info->array[info->index++] = ((UINT32 *)buffer)[2];
 }
 
 TEST(LogTest, formatTest2)
@@ -146,6 +146,7 @@ TEST(LogTest, formatTest3)
     LogTestInit();
     info.array = kmalloc(sizeof(UINT32) * ARRAY_NUM, GFP_KERNEL);
     array = GenRandomArray(ARRAY_NUM);
+    // array = GenSeqArray(ARRAY_NUM);
     LogFormat(&log, &ppool, 0, &acc);
     while (i < ARRAY_NUM)
     {

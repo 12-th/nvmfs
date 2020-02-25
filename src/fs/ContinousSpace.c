@@ -35,14 +35,17 @@ void ContinousSpaceUninit(struct ContinousSpace * cs)
 void ContinousSpaceDestroy(struct ContinousSpace * cs, struct PagePool * pool, struct NVMAccesser * acc)
 {
     logic_addr_t cur, next;
+    DEBUG_PRINT("log destroy, areas are :\n");
     cur = cs->firstArea;
     while (cs->areaNum)
     {
+        DEBUG_PRINT("0x%lx\t", cur);
         NVMAccesserRead(acc, cur, sizeof(logic_addr_t), &next);
         PagePoolFree(pool, cur);
         cur = next;
         cs->areaNum--;
     }
+    DEBUG_PRINT("\n");
 }
 
 static logic_addr_t * AllocAreas(struct ContinousSpace * cs, UINT64 pageNum, struct PagePool * pool,
@@ -51,6 +54,8 @@ static logic_addr_t * AllocAreas(struct ContinousSpace * cs, UINT64 pageNum, str
     logic_addr_t * array;
     int i = 0;
     logic_addr_t lastPage = curArea;
+
+    *err = 0;
 
     if (pageNum <= CONTINOUS_SPACE_INLINE_ARRAY_SIZE)
         array = cs->inlineArray;
@@ -92,6 +97,7 @@ static void LinkAreas(struct ContinousSpace * cs, logic_addr_t * arr, UINT64 num
     for (i = 0; i < num; ++i)
     {
         NVMAccesserWrite(acc, lastArea, sizeof(logic_addr_t), &arr[i], 0);
+        lastArea = arr[i];
     }
     cs->areaNum += num;
     cs->restSize += num * (PAGE_SIZE - sizeof(logic_addr_t));
@@ -122,8 +128,6 @@ int ContinousSpaceEssureEnoughSpace(struct ContinousSpace * cs, logic_addr_t add
         return 0;
     }
     err = ContinousSpacePreallocSpace(cs, size - cs->restSize, pool, acc, addr);
-    if (err)
-        return err;
     return err;
 }
 
